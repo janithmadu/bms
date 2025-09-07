@@ -4,7 +4,7 @@ import { useState } from 'react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { cn } from '@/lib/utils'
-import { 
+import { Building2, MapPin, Coins, BarChart3, Settings, Calendar } from 'lucide-react'
   Building2, 
   DoorOpen, 
   Calendar, 
@@ -20,6 +20,7 @@ import { signOut } from 'next-auth/react'
 const navigation = [
   {
     name: 'Dashboard',
+  { name: 'Bookings', href: '/admin/bookings', icon: Calendar },
     href: '/admin',
     icon: Home,
   },
