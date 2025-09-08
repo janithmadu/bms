@@ -125,38 +125,196 @@ export default function LocationBoardroomsPage() {
           </Button>
 
           {/* Location Header */}
-          <Card className="mb-8 bg-white/80 backdrop-blur-sm border-white/20 overflow-hidden">
-            <div className="relative h-64 md:h-80 bg-gradient-to-br from-slate-100 to-slate-200">
+          <Card className="mb-8 bg-white/90 backdrop-blur-sm border-white/30 overflow-hidden shadow-2xl">
+            <div className="relative h-80 md:h-96 bg-gradient-to-br from-slate-100 to-slate-200">
               {location.imageUrl ? (
                 <img
                   src={location.imageUrl}
                   alt={location.name}
-                  className="w-full h-full object-cover"
+                  className="w-full h-full object-cover hover:scale-105 transition-transform duration-700"
                 />
               ) : (
-                <div className="flex items-center justify-center h-full">
-                  <Building2 className="h-24 w-24 text-slate-400" />
+                <div className="flex items-center justify-center h-full bg-gradient-to-br from-blue-100 to-purple-100">
+                  <img
+                    src="https://images.pexels.com/photos/380769/pexels-photo-380769.jpeg?auto=compress&cs=tinysrgb&w=1200"
+                    alt="Modern office building"
+                    className="w-full h-full object-cover"
+                  />
                 </div>
               )}
-              <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent" />
-              <div className="absolute bottom-6 left-6 text-white">
-                <h1 className="text-3xl md:text-4xl font-bold mb-2">{location.name}</h1>
-                <div className="flex items-center text-white/90 mb-2">
+              <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/20 to-transparent" />
+              <div className="absolute bottom-8 left-8 text-white max-w-2xl">
+                <div className="inline-flex items-center px-3 py-1 bg-white/20 backdrop-blur-sm rounded-full border border-white/30 mb-4">
+                  <Building2 className="h-4 w-4 mr-2" />
+                  <span className="text-sm font-medium">Premium Location</span>
+                </div>
+                <h1 className="text-4xl md:text-5xl font-bold mb-4 leading-tight">{location.name}</h1>
+                <div className="flex items-center text-white/90 mb-4">
                   <MapPin className="h-5 w-5 mr-2" />
-                  {location.address}
+                  <span className="text-lg">{location.address}</span>
                 </div>
                 {location.description && (
-                  <p className="text-white/80 max-w-2xl">{location.description}</p>
+                  <p className="text-white/90 text-lg leading-relaxed">{location.description}</p>
                 )}
+              </div>
+              <div className="absolute top-6 right-6 bg-white/20 backdrop-blur-sm rounded-2xl px-4 py-2 border border-white/30">
+                <div className="text-white text-center">
+                  <div className="text-2xl font-bold">{location.boardrooms.length}</div>
+                  <div className="text-sm">Room{location.boardrooms.length !== 1 ? 's' : ''}</div>
+                </div>
               </div>
             </div>
           </Card>
 
           {/* Boardrooms Section */}
           <div className="mb-8">
-            <h2 className="text-2xl md:text-3xl font-bold text-slate-900 mb-2">Available Boardrooms</h2>
-            <p className="text-slate-600 mb-8">
-              Choose from {location.boardrooms.length} premium meeting space{location.boardrooms.length !== 1 ? 's' : ''} at this location
+            <div className="text-center mb-12">
+              <h2 className="text-3xl md:text-4xl font-bold text-slate-900 mb-4">Premium Boardrooms</h2>
+              <p className="text-xl text-slate-600 max-w-2xl mx-auto">
+                Discover {location.boardrooms.length} thoughtfully designed meeting space{location.boardrooms.length !== 1 ? 's' : ''} 
+                equipped with cutting-edge technology and premium amenities
+              </p>
+            </div>
+            
+            {/* Quick Stats */}
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-12">
+              <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-6 border border-white/20 text-center shadow-lg">
+                <div className="text-2xl font-bold text-blue-600 mb-1">{location.boardrooms.length}</div>
+                <div className="text-sm text-slate-600">Meeting Rooms</div>
+              </div>
+              <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-6 border border-white/20 text-center shadow-lg">
+                <div className="text-2xl font-bold text-green-600 mb-1">
+                  {Math.max(...location.boardrooms.map(r => r.capacity), 0)}
+                </div>
+                <div className="text-sm text-slate-600">Max Capacity</div>
+              </div>
+              <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-6 border border-white/20 text-center shadow-lg">
+                <div className="text-2xl font-bold text-purple-600 mb-1">24/7</div>
+                <div className="text-sm text-slate-600">Availability</div>
+              </div>
+              <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-6 border border-white/20 text-center shadow-lg">
+                <div className="text-2xl font-bold text-amber-600 mb-1">Premium</div>
+                <div className="text-sm text-slate-600">Facilities</div>
+              </div>
+            </div>
+
+            {location.boardrooms.length === 0 ? (
+              <Card className="bg-white/90 backdrop-blur-sm border-white/30 shadow-xl">
+                <CardContent className="flex flex-col items-center justify-center py-20">
+                  <div className="h-24 w-24 bg-gradient-to-br from-slate-200 to-slate-300 rounded-3xl flex items-center justify-center mb-6">
+                    <Calendar className="h-12 w-12 text-slate-400" />
+                  </div>
+                  <h3 className="text-2xl font-bold text-slate-700 mb-3">No Boardrooms Available</h3>
+                  <p className="text-slate-500 text-center max-w-md leading-relaxed">
+                    This location doesn't have any boardrooms set up yet. Please check back later or contact your administrator.
+                  </p>
+                </CardContent>
+              </Card>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+                {location.boardrooms.map((boardroom) => (
+                  <Card 
+                    key={boardroom.id}
+                    className="group hover:shadow-2xl transition-all duration-500 transform hover:scale-105 bg-white/90 backdrop-blur-sm border-white/30 overflow-hidden shadow-xl"
+                  >
+                    {/* Image */}
+                    <div className="relative h-56 bg-gradient-to-br from-slate-100 to-slate-200 overflow-hidden">
+                      {boardroom.imageUrl ? (
+                        <img
+                          src={boardroom.imageUrl}
+                          alt={boardroom.name}
+                          className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700"
+                        />
+                      ) : (
+                        <div className="relative h-full">
+                          <img
+                            src="https://images.pexels.com/photos/416320/pexels-photo-416320.jpeg?auto=compress&cs=tinysrgb&w=800"
+                            alt="Modern boardroom"
+                            className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700"
+                          />
+                        </div>
+                      )}
+                      <div className="absolute inset-0 bg-gradient-to-t from-black/30 to-transparent" />
+                      <div className="absolute top-4 right-4 bg-white/90 backdrop-blur-sm rounded-xl px-3 py-1 shadow-lg">
+                        <div className="flex items-center text-sm font-medium text-slate-700">
+                          <Users className="h-4 w-4 mr-1" />
+                          {boardroom.capacity}
+                        </div>
+                      </div>
+                    </div>
+
+                    <CardHeader className="pb-4">
+                      <CardTitle className="text-xl font-bold text-slate-900 group-hover:text-blue-600 transition-colors">
+                        {boardroom.name}
+                      </CardTitle>
+                      <CardDescription className="line-clamp-2 text-slate-600">
+                        {boardroom.description || 'Premium meeting room with state-of-the-art facilities and modern design for productive meetings.'}
+                      </CardDescription>
+                    </CardHeader>
+
+                    <CardContent className="pt-0">
+                      {/* Room Details */}
+                      <div className="space-y-4 mb-6">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center text-sm text-slate-600">
+                            <Users className="h-4 w-4 mr-2 text-blue-500" />
+                            Up to {boardroom.capacity} people
+                          </div>
+                          {boardroom.dimensions && (
+                            <div className="flex items-center text-sm text-slate-600">
+                              <Maximize2 className="h-4 w-4 mr-2 text-green-500" />
+                              {boardroom.dimensions}
+                            </div>
+                          )}
+                        </div>
+
+                        {/* Facilities */}
+                        {boardroom.facilities.length > 0 && (
+                          <div>
+                            <div className="flex flex-wrap gap-2">
+                              {boardroom.facilities.slice(0, 3).map((facility, index) => (
+                                <Badge key={index} variant="secondary" className="text-xs bg-blue-50 text-blue-700 border-blue-200">
+                                  {facility}
+                                </Badge>
+                              ))}
+                              {boardroom.facilities.length > 3 && (
+                                <Badge variant="secondary" className="text-xs bg-slate-100 text-slate-600">
+                                  +{boardroom.facilities.length - 3} more
+                                </Badge>
+                              )}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+
+                      <Button 
+                        onClick={() => handleBookRoom(boardroom)}
+                        className="w-full bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white font-semibold shadow-lg transition-all duration-300 group-hover:shadow-xl transform group-hover:scale-105"
+                      >
+                        <Calendar className="h-4 w-4 mr-2" />
+                        Book This Room
+                      </Button>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* Booking Modal */}
+      {selectedBoardroom && (
+        <BookingModal
+          open={isModalOpen}
+          onOpenChange={setIsModalOpen}
+          boardroom={selectedBoardroom}
+          location={location}
+        />
+      )}
+    </>
+  )
+}
             </p>
 
             {location.boardrooms.length === 0 ? (

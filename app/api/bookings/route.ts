@@ -78,6 +78,7 @@ export async function POST(request: NextRequest) {
           endTime: end,
           duration,
           tokensUsed,
+          status: 'pending', // All new bookings start as pending
           boardroomId,
         },
         include: {

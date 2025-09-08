@@ -49,14 +49,33 @@ model User {
   email         String    @unique
   emailVerified DateTime?
   image         String?
-  role          String    @default("admin")
+  role          String    @default("user") // admin, manager, user
+  status        String    @default("active") // active, inactive
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
   accounts      Account[]
   sessions      Session[]
   password      String 
+  
+  // Location access for managers and users
+  userLocations UserLocation[]
 
   @@index([email])
+  @@index([role])
+  @@index([status])
+}
+
+model UserLocation {
+  id         String   @id @default(cuid())
+  userId     String
+  locationId String
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  location   Location @relation(fields: [locationId], references: [id], onDelete: Cascade)
+  createdAt  DateTime @default(now())
+
+  @@unique([userId, locationId])
+  @@index([userId])
+  @@index([locationId])
 }
 
 model VerificationToken {
@@ -79,6 +98,7 @@ model Location {
   createdAt   DateTime    @default(now())
   updatedAt   DateTime    @updatedAt
   boardrooms  Boardroom[]
+  userLocations UserLocation[]
 
   @@index([name])
 }
@@ -112,7 +132,7 @@ model Booking {
   endTime     DateTime  // Full datetime for end
   duration    Float     // Duration in hours
   tokensUsed  Int
-  status      String    @default("confirmed") // confirmed, cancelled
+  status      String    @default("pending") // pending, confirmed, cancelled
   boardroomId String
   boardroom   Boardroom @relation(fields: [boardroomId], references: [id], onDelete: Cascade)
   createdAt   DateTime  @default(now())

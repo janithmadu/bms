@@ -187,52 +187,18 @@ export function BoardroomDialog({ open, onOpenChange, boardroom, locationId, onS
 
             {/* Image Upload */}
             <div className="grid gap-2">
-              <Label>Room Image</Label>
-              {formData.imageUrl ? (
-                <div className="relative">
-                  <img
-                    src={formData.imageUrl}
-                    alt="Boardroom"
-                    className="w-full h-48 object-cover rounded-lg"
-                  />
-                  <Button
-                    type="button"
-                    variant="destructive"
-                    size="sm"
-                    className="absolute top-2 right-2"
-                    onClick={() => setFormData({ ...formData, imageUrl: '' })}
-                  >
-                    <X className="h-4 w-4" />
-                  </Button>
-                </div>
-              ) : (
-                <CldUploadWidget
-                  uploadPreset="unsigned_preset"
-                  onSuccess={handleImageUpload}
-                  options={{
-                    multiple: false,
-                    resourceType: "image",
-                    maxImageFileSize: 5000000,
-                    cropping: true,
-                    croppingAspectRatio: 16/9,
-                    folder: "boardrooms"
-                  }}
-                >
-                  {({ open }) => (
-                    <Button
-                      type="button"
-                      variant="outline"
-                      onClick={() => open()}
-                      className="h-48 border-dashed hover:bg-slate-50"
-                    >
-                      <div className="text-center">
-                        <Upload className="h-12 w-12 mx-auto mb-4 text-slate-400" />
-                        <p className="text-sm text-slate-600 mb-2">Click to upload room image</p>
-                        <p className="text-xs text-slate-500">Supports drag & drop, cropping, and resizing</p>
-                      </div>
-                    </Button>
-                  )}
-                </CldUploadWidget>
+              <Label>Room Image URL (Optional)</Label>
+              <Input
+                value={formData.imageUrl}
+                onChange={(e) => setFormData({ ...formData, imageUrl: e.target.value })}
+                placeholder="Enter image URL or upload after creating boardroom"
+              />
+              {formData.imageUrl && (
+                <img
+                  src={formData.imageUrl}
+                  alt="Boardroom preview"
+                  className="w-full h-48 object-cover rounded-lg mt-2"
+                />
               )}
             </div>
 

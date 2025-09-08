@@ -123,6 +123,46 @@ export default function BookingsPage() {
     handleCloseDialog()
   }
 
+  const handleApprove = async (bookingId: string) => {
+    try {
+      const response = await fetch(`/api/admin/bookings/${bookingId}/approve`, {
+        method: 'POST',
+      })
+
+      if (response.ok) {
+        toast.success('Booking approved successfully')
+        fetchBookings()
+      } else {
+        throw new Error('Failed to approve booking')
+      }
+    } catch (error) {
+      console.error('Error approving booking:', error)
+      toast.error('Failed to approve booking')
+    }
+  }
+
+  const handleReject = async (bookingId: string) => {
+    if (!confirm('Are you sure you want to reject this booking? Tokens will be refunded.')) {
+      return
+    }
+
+    try {
+      const response = await fetch(`/api/admin/bookings/${bookingId}/reject`, {
+        method: 'POST',
+      })
+
+      if (response.ok) {
+        toast.success('Booking rejected successfully')
+        fetchBookings()
+      } else {
+        throw new Error('Failed to reject booking')
+      }
+    } catch (error) {
+      console.error('Error rejecting booking:', error)
+      toast.error('Failed to reject booking')
+    }
+  }
+
   const getDateLabel = (dateString: string) => {
     const date = new Date(dateString)
     if (isToday(date)) return 'Today'
