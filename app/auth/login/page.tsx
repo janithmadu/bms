@@ -1,7 +1,7 @@
 "use client"
 
 import { useState } from 'react'
-import { signIn, getSession } from 'next-auth/react'
+import { signIn, getSession, useSession } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -15,6 +15,12 @@ export default function LoginPage() {
   const [showPassword, setShowPassword] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
   const router = useRouter()
+
+  const { data: session, status } = useSession();
+
+  if (session) {
+    window.location.href = process.env.NEXT_PUBLIC_MAIN_URL as string;
+  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()

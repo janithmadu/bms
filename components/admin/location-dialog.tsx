@@ -64,7 +64,10 @@ export function LocationDialog({ open, onOpenChange, location, onSave }: Locatio
         toast.success(`Location ${location ? 'updated' : 'created'} successfully`)
         onSave()
       } else {
-        throw new Error(`Failed to ${location ? 'update' : 'create'} location`)
+        const data = await response.json()
+        toast.error(data.error)
+        // throw new Error(`Failed to ${location ? 'update' : 'create'} location`)
+        
       }
     } catch (error) {
       console.error('Error saving location:', error)

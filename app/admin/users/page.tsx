@@ -43,6 +43,12 @@ export default function UsersPage() {
         const data = await response.json()
         setUsers(data)
       }
+
+      if(response.status === 401){
+        const data = await response.json()
+        toast.error(data.error)
+      }
+      
     } catch (error) {
       console.error('Error fetching users:', error)
       toast.error('Failed to fetch users')
@@ -69,7 +75,8 @@ export default function UsersPage() {
         toast.success('User deleted successfully')
         fetchUsers()
       } else {
-        throw new Error('Failed to delete user')
+        const data = await response.json()
+        toast.error(data.error)
       }
     } catch (error) {
       console.error('Error deleting user:', error)

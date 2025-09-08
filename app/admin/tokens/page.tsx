@@ -9,6 +9,7 @@ import { PageHeader } from '@/components/ui/page-header'
 import { Coins, Plus, RotateCcw, TrendingUp, Calendar } from 'lucide-react'
 import { toast } from 'sonner'
 import { format } from 'date-fns'
+import { useSession } from 'next-auth/react'
 
 interface TokenData {
   id: string
@@ -24,6 +25,9 @@ export default function TokensPage() {
   const [initialCount, setInitialCount] = useState('')
   const [additionalTokens, setAdditionalTokens] = useState('')
   const [isUpdating, setIsUpdating] = useState(false)
+   const { data: session, status } = useSession();
+   const isAdmin = session?.user?.role === "admin"
+  
 
   const fetchTokens = async () => {
     try {
@@ -125,6 +129,20 @@ export default function TokensPage() {
     } finally {
       setIsUpdating(false)
     }
+  }
+
+
+    if (!isAdmin) {
+    return (
+      <div className="space-y-6">
+        <PageHeader title="Unauthorized" description="You do not have permission to access this page." />
+        <Card>
+          <CardContent className="flex items-center justify-center py-16">
+            <p className="text-slate-500">Only administrators can manage tokens.</p>
+          </CardContent>
+        </Card>
+      </div>
+    )
   }
 
   if (isLoading) {

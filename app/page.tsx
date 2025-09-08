@@ -2,7 +2,8 @@ import Link from 'next/link'
 import { Button } from '@/components/ui/button'
 import { Building2, Calendar, Coins, Users, ArrowRight, MapPin, Star, CheckCircle, Clock, Shield } from 'lucide-react'
 
-export default function HomePage() {
+export default async function HomePage() {
+ 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50">
       {/* Background decoration */}

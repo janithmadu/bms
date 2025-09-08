@@ -29,7 +29,7 @@ export async function PUT(request: NextRequest) {
   try {
     const session = await getServerSession(authOptions)
     
-    if (!session) {
+    if (!session || session.user.role !== "admin") {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 

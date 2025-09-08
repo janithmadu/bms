@@ -1,3 +1,4 @@
+"use client"
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { cn } from '@/lib/utils'
@@ -15,8 +16,14 @@ const navigation = [
 export default function AdminSidebar() {
   const pathname = usePathname()
 
+   const handleLogout = () => {
+    signOut({
+      callbackUrl: "/auth/login", // redirect after logout
+    });
+  };
+
   return (
-    <div className="flex h-full w-64 flex-col bg-gray-900">
+    <div className="flex min-h-full w-64 flex-col bg-gray-900">
       <div className="flex h-16 shrink-0 items-center px-4">
         <Building2 className="h-8 w-8 text-white" />
         <span className="ml-2 text-xl font-semibold text-white">Admin</span>
@@ -48,7 +55,7 @@ export default function AdminSidebar() {
       </nav>
       <div className="flex-shrink-0 p-4">
         <button
-          onClick={() => signOut()}
+          onClick={() => handleLogout()}
           className="group flex w-full items-center px-2 py-2 text-sm font-medium text-gray-300 rounded-md hover:bg-gray-700 hover:text-white"
         >
           <LogOut className="mr-3 h-5 w-5 flex-shrink-0 text-gray-400 group-hover:text-white" />

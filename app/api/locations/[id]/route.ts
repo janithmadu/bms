@@ -8,31 +8,59 @@ export async function GET(
   { params }: { params: { id: string } }
 ) {
   try {
+    const { searchParams } = new URL(request.url)
+    const userId = searchParams.get("userId")
+    const role = searchParams.get("role")
+
+
+    
+    // ✅ check user access using userId + locationId
+    const checkUserHasAccessToLocations = await prisma.user.findFirst({
+      where: {
+        id: userId || "", // enforce user match
+        userLocations: {
+          some: {
+            locationId: params.id,
+          },
+        },
+      },
+    })
+
+
+    console.log(checkUserHasAccessToLocations);
+    
+
+
+
+    
+
+    if (!checkUserHasAccessToLocations && role !== "admin") {
+      return NextResponse.json(
+        { error: "Unauthorized access" },
+        { status: 403 }
+      )
+    }
+
     const location = await prisma.location.findUnique({
       where: { id: params.id },
       include: {
         boardrooms: {
           include: {
-            _count: {
-              select: { bookings: true }
-            }
-          }
-        }
-      }
+            _count: { select: { bookings: true } },
+          },
+        },
+      },
     })
 
     if (!location) {
-      return NextResponse.json(
-        { error: 'Location not found' },
-        { status: 404 }
-      )
+      return NextResponse.json({ error: "Location not found" }, { status: 404 })
     }
 
     return NextResponse.json(location)
   } catch (error) {
-    console.error('Error fetching location:', error)
+    // console.error("Error fetching location:", error)
     return NextResponse.json(
-      { error: 'Failed to fetch location' },
+      { error: "Failed to fetch location" },
       { status: 500 }
     )
   }

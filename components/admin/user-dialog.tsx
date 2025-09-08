@@ -10,6 +10,7 @@ import { Checkbox } from '@/components/ui/checkbox'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { MapPin, Shield, Mail, User } from 'lucide-react'
 import { toast } from 'sonner'
+import { useSession } from 'next-auth/react'
 
 interface UserDialogProps {
   open: boolean
@@ -62,15 +63,24 @@ export function UserDialog({ open, onOpenChange, user, onSave }: UserDialogProps
     }
   }, [open, user])
 
+ const { data: session, status } = useSession();
+
+
+
   const fetchLocations = async () => {
     try {
-      const response = await fetch('/api/locations')
-      const data = await response.json()
-      setLocations(data)
+      const response = await fetch(
+        `/api/locations?userId=${session?.user.id}&role=${session?.user.role}`
+      );
+      const data = await response.json();
+      setLocations(Array.isArray(data) ? data : []);
     } catch (error) {
-      console.error('Error fetching locations:', error)
+      console.error("Error fetching locations:", error);
+      toast.error("Failed to fetch locations");
+    } finally {
+      setIsLoading(false);
     }
-  }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()

@@ -1,88 +1,105 @@
-"use client"
+"use client";
 
-import { useEffect, useState } from 'react'
-import { Button } from '@/components/ui/button'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { PageHeader } from '@/components/ui/page-header'
-import { Plus, MapPin, Edit, Trash2, DoorOpen } from 'lucide-react'
-import { LocationDialog } from '@/components/admin/location-dialog'
-import { toast } from 'sonner'
-import Link from 'next/link'
+import { useEffect, useState } from "react";
+import { Button } from "@/components/ui/button";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { PageHeader } from "@/components/ui/page-header";
+import { Plus, MapPin, Edit, Trash2, DoorOpen } from "lucide-react";
+import { LocationDialog } from "@/components/admin/location-dialog";
+import { toast } from "sonner";
+import Link from "next/link";
+import { useSession } from "next-auth/react";
 
 interface Location {
-  id: string
-  name: string
-  address: string
-  description?: string
-  imageUrl?: string
-  boardrooms: { id: string; name: string }[]
-  createdAt: string
+  id: string;
+  name: string;
+  address: string;
+  description?: string;
+  imageUrl?: string;
+  boardrooms: { id: string; name: string }[];
+  createdAt: string;
 }
 
 export default function LocationsPage() {
-  const [locations, setLocations] = useState<Location[]>([])
-  const [isLoading, setIsLoading] = useState(true)
-  const [isDialogOpen, setIsDialogOpen] = useState(false)
-  const [editingLocation, setEditingLocation] = useState<Location | null>(null)
+  const [locations, setLocations] = useState<Location[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [editingLocation, setEditingLocation] = useState<Location | null>(null);
+  const { data: session, status } = useSession();
 
   const fetchLocations = async () => {
     try {
-      const response = await fetch('/api/locations')
-      const data = await response.json()
-      setLocations(data)
+      const response = await fetch(
+        `/api/locations?userId=${session?.user.id}&role=${session?.user.role}`
+      );
+      const data = await response.json();
+      setLocations(Array.isArray(data) ? data : []);
     } catch (error) {
-      console.error('Error fetching locations:', error)
-      toast.error('Failed to fetch locations')
+      console.error("Error fetching locations:", error);
+      toast.error("Failed to fetch locations");
     } finally {
-      setIsLoading(false)
+      setIsLoading(false);
     }
-  }
+  };
 
   useEffect(() => {
-    fetchLocations()
-  }, [])
+    fetchLocations();
+  }, [session?.user.id]);
 
   const handleDelete = async (id: string) => {
-    if (!confirm('Are you sure you want to delete this location? This will also delete all associated boardrooms.')) {
-      return
+    if (
+      !confirm(
+        "Are you sure you want to delete this location? This will also delete all associated boardrooms."
+      )
+    ) {
+      return;
     }
 
     try {
       const response = await fetch(`/api/locations/${id}`, {
-        method: 'DELETE',
-      })
+        method: "DELETE",
+      });
 
       if (response.ok) {
-        toast.success('Location deleted successfully')
-        fetchLocations()
+        toast.success("Location deleted successfully");
+        fetchLocations();
       } else {
-        throw new Error('Failed to delete location')
+        throw new Error("Failed to delete location");
       }
     } catch (error) {
-      console.error('Error deleting location:', error)
-      toast.error('Failed to delete location')
+      console.error("Error deleting location:", error);
+      toast.error("Failed to delete location");
     }
-  }
+  };
 
   const handleEdit = (location: Location) => {
-    setEditingLocation(location)
-    setIsDialogOpen(true)
-  }
+    setEditingLocation(location);
+    setIsDialogOpen(true);
+  };
 
   const handleCloseDialog = () => {
-    setIsDialogOpen(false)
-    setEditingLocation(null)
-  }
+    setIsDialogOpen(false);
+    setEditingLocation(null);
+  };
 
   const handleSave = () => {
-    fetchLocations()
-    handleCloseDialog()
-  }
+    fetchLocations();
+    handleCloseDialog();
+  };
 
   if (isLoading) {
     return (
       <div className="space-y-6">
-        <PageHeader title="Locations" description="Manage your office locations" />
+        <PageHeader
+          title="Locations"
+          description="Manage your office locations"
+        />
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {[1, 2, 3].map((i) => (
             <Card key={i} className="animate-pulse">
@@ -98,17 +115,20 @@ export default function LocationsPage() {
           ))}
         </div>
       </div>
-    )
+    );
   }
 
   return (
     <>
       <div className="space-y-6">
-        <PageHeader 
-          title="Locations" 
+        <PageHeader
+          title="Locations"
           description="Manage your office locations"
         >
-          <Button onClick={() => setIsDialogOpen(true)} className="bg-blue-600 hover:bg-blue-700">
+          <Button
+            onClick={() => setIsDialogOpen(true)}
+            className="bg-blue-600 hover:bg-blue-700"
+          >
             <Plus className="h-4 w-4 mr-2" />
             Add Location
           </Button>
@@ -118,11 +138,17 @@ export default function LocationsPage() {
           <Card>
             <CardContent className="flex flex-col items-center justify-center py-16">
               <MapPin className="h-16 w-16 text-slate-300 mb-4" />
-              <h3 className="text-xl font-semibold text-slate-600 mb-2">No locations yet</h3>
+              <h3 className="text-xl font-semibold text-slate-600 mb-2">
+                No locations yet
+              </h3>
               <p className="text-slate-500 text-center mb-6 max-w-md">
-                Get started by adding your first office location. You can then add boardrooms to each location.
+                Get started by adding your first office location. You can then
+                add boardrooms to each location.
               </p>
-              <Button onClick={() => setIsDialogOpen(true)} className="bg-blue-600 hover:bg-blue-700">
+              <Button
+                onClick={() => setIsDialogOpen(true)}
+                className="bg-blue-600 hover:bg-blue-700"
+              >
                 <Plus className="h-4 w-4 mr-2" />
                 Add Your First Location
               </Button>
@@ -130,8 +156,11 @@ export default function LocationsPage() {
           </Card>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {locations.map((location) => (
-              <Card key={location.id} className="hover:shadow-lg transition-shadow">
+            {locations?.map((location) => (
+              <Card
+                key={location.id}
+                className="hover:shadow-lg transition-shadow"
+              >
                 <CardHeader>
                   <div className="flex items-start justify-between">
                     <div>
@@ -175,7 +204,8 @@ export default function LocationsPage() {
                   <div className="flex items-center justify-between">
                     <div className="flex items-center text-sm text-slate-500">
                       <DoorOpen className="h-4 w-4 mr-1" />
-                      {location.boardrooms.length} boardroom{location.boardrooms.length !== 1 ? 's' : ''}
+                      {location.boardrooms.length} boardroom
+                      {location.boardrooms.length !== 1 ? "s" : ""}
                     </div>
                     <Button variant="outline" size="sm" asChild>
                       <Link href={`/admin/locations/${location.id}/boardrooms`}>
@@ -197,5 +227,5 @@ export default function LocationsPage() {
         onSave={handleSave}
       />
     </>
-  )
+  );
 }

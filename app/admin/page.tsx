@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import { PageHeader } from '@/components/ui/page-header'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Building2, DoorOpen, Calendar, Coins, Users, TrendingUp } from 'lucide-react'
+import { useSession } from 'next-auth/react'
 
 interface DashboardStats {
   totalLocations: number
@@ -18,11 +19,16 @@ export default function AdminDashboard() {
   const [stats, setStats] = useState<DashboardStats | null>(null)
   const [isLoading, setIsLoading] = useState(true)
 
+    const { data: session, status } = useSession();
+
+
+
+
   useEffect(() => {
     const fetchStats = async () => {
       try {
         const [locationsRes, tokensRes] = await Promise.all([
-          fetch('/api/locations'),
+          fetch(`/api/locations?userId=${session?.user.id}&role=${session?.user.role}`),
           fetch('/api/tokens')
         ])
 
@@ -47,7 +53,7 @@ export default function AdminDashboard() {
     }
 
     fetchStats()
-  }, [])
+  }, [session?.user.id])
 
   const statCards = [
     {

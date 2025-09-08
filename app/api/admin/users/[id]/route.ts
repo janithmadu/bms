@@ -11,12 +11,19 @@ export async function PUT(
   try {
     const session = await getServerSession(authOptions)
     
-    if (!session || session.user.role !== 'admin') {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  if (
+      !session ||
+      (session.user.role !== "admin" && session.user.role !== "manager")
+    ) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
     const body = await request.json()
     const { name, email, password, role, status, locationIds } = body
+
+        if (role === "admin" && session.user.role !== "admin") {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
 
     // Check if email is already taken by another user
     const existingUser = await prisma.user.findFirst({
@@ -104,9 +111,27 @@ export async function DELETE(
   try {
     const session = await getServerSession(authOptions)
     
-    if (!session || session.user.role !== 'admin') {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+if (
+      !session ||
+      (session.user.role !== "admin" && session.user.role !== "manager")
+    ) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
+
+    const getUser = await prisma.user.findUnique({
+      where:{
+        id:params.id
+      },
+      select:{
+        role:true
+      }
+    })
+
+    if(getUser?.role === "admin" &&  session.user.role === "manager"){
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+
 
     // Don't allow deleting the current user
     if (session.user.id === params.id) {
@@ -115,6 +140,7 @@ export async function DELETE(
         { status: 400 }
       )
     }
+    
 
     await prisma.user.delete({
       where: { id: params.id }
