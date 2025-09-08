@@ -11,6 +11,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { CalendarIcon, Clock, Users, MapPin, Coins, AlertCircle } from 'lucide-react'
 import { format, addDays, isBefore, startOfDay } from 'date-fns'
 import { toast } from 'sonner'
+import { useSession } from 'next-auth/react'
 
 interface BookingDialogProps {
   open: boolean
@@ -86,15 +87,22 @@ export function BookingDialog({ open, onOpenChange, booking, onSave }: BookingDi
     calculateTokensRequired()
   }, [formData.startTime, formData.endTime])
 
+const { data: session, status } = useSession();
+
   const fetchLocations = async () => {
     try {
-      const response = await fetch('/api/locations')
-      const data = await response.json()
-      setLocations(data)
+      const response = await fetch(
+        `/api/locations?userId=${session?.user.id}&role=${session?.user.role}`
+      );
+      const data = await response.json();
+      setLocations(Array.isArray(data) ? data : []);
     } catch (error) {
-      console.error('Error fetching locations:', error)
+      console.error("Error fetching locations:", error);
+      toast.error("Failed to fetch locations");
+    } finally {
+      setIsLoading(false);
     }
-  }
+  };
 
   const fetchTokenData = async () => {
     try {
