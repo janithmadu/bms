@@ -50,7 +50,7 @@ export default function LocationsPage() {
 
   useEffect(() => {
     fetchLocations();
-  }, [session?.user.id]);
+  }, [session?.user.id,fetchLocations]);
 
   const handleDelete = async (id: string) => {
     if (

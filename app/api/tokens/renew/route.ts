@@ -13,15 +13,17 @@ export async function POST(request: NextRequest) {
      if (!session || session.user.role !== "admin") {
           return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
         }
+
+        let  tokenRecord;
     
-    const tokenRecord = await prisma.token.update({
-      where: { id: 'singleton' },
-      data: {
-        availableCount: { set: prisma.raw('initial_count') },
-        tokensUsedThisMonth: 0,
-        lastRenewalDate: new Date()
-      }
-    })
+    // const tokenRecord = await prisma.token.update({
+    //   where: { id: 'singleton' },
+    //   data: {
+    //     availableCount: { set: prisma.raw('initial_count') },
+    //     tokensUsedThisMonth: 0,
+    //     lastRenewalDate: new Date()
+    //   }
+    // })
 
     return NextResponse.json({ 
       message: 'Tokens renewed successfully',

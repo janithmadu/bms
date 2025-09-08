@@ -53,7 +53,7 @@ export default function AdminDashboard() {
     }
 
     fetchStats()
-  }, [session?.user.id])
+  }, [session?.user.id,session?.user.role])
 
   const statCards = [
     {

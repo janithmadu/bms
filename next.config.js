@@ -2,7 +2,7 @@
 const nextConfig = {
 
   eslint: {
-    ignoreDuringBuilds: true,
+    ignoreDuringBuilds: false,
   },
   images: { unoptimized: true },
 };

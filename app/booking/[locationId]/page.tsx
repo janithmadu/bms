@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import { useParams } from 'next/navigation'
 import Link from 'next/link'
+import Image from 'next/image'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -95,7 +96,7 @@ export default function LocationBoardroomsPage() {
             <Building2 className="h-16 w-16 text-slate-300 mb-4" />
             <h3 className="text-xl font-semibold text-slate-600 mb-2">Location Not Found</h3>
             <p className="text-slate-500 text-center mb-6">
-              The location you're looking for doesn't exist or has been removed.
+              The location you&apos;re looking for doesn&apos;t exist or has been removed.
             </p>
             <Button asChild>
               <Link href="/booking">Back to Locations</Link>
@@ -128,10 +129,11 @@ export default function LocationBoardroomsPage() {
           <Card className="mb-8 bg-white/80 backdrop-blur-sm border-white/20 overflow-hidden">
             <div className="relative h-64 md:h-80 bg-gradient-to-br from-slate-100 to-slate-200">
               {location.imageUrl ? (
-                <img
+                <Image
                   src={location.imageUrl}
                   alt={location.name}
-                  className="w-full h-full object-cover"
+                  fill
+                  className="object-cover"
                 />
               ) : (
                 <div className="flex items-center justify-center h-full">
@@ -165,7 +167,7 @@ export default function LocationBoardroomsPage() {
                   <Calendar className="h-16 w-16 text-slate-300 mb-4" />
                   <h3 className="text-xl font-semibold text-slate-600 mb-2">No Boardrooms Available</h3>
                   <p className="text-slate-500 text-center">
-                    This location doesn't have any boardrooms set up yet. Please check back later.
+                    This location doesn&apos;t have any boardrooms set up yet. Please check back later.
                   </p>
                 </CardContent>
               </Card>
@@ -179,10 +181,11 @@ export default function LocationBoardroomsPage() {
                     {/* Image */}
                     <div className="relative h-48 bg-gradient-to-br from-slate-100 to-slate-200 overflow-hidden">
                       {boardroom.imageUrl ? (
-                        <img
+                        <Image
                           src={boardroom.imageUrl}
                           alt={boardroom.name}
-                          className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
+                          fill
+                          className="object-cover group-hover:scale-110 transition-transform duration-500"
                         />
                       ) : (
                         <div className="flex items-center justify-center h-full">

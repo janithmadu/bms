@@ -4,7 +4,7 @@ import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 
 export async function POST(
-  request: NextRequest,
+  request: Request,
   { params }: { params: { id: string } }
 ) {
   try {

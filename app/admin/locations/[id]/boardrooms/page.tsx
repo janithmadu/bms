@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
+import Image from "next/image";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -26,7 +27,6 @@ import {
 import { BoardroomDialog } from "@/components/admin/boardroom-dialog";
 import { toast } from "sonner";
 import { useSession } from "next-auth/react";
-import { array } from "zod";
 
 interface Boardroom {
   id: string;
@@ -86,7 +86,7 @@ export default function LocationBoardroomsPage() {
     } else {
       fetchLocation();
     }
-  }, [locationId, status]);
+  }, [locationId, status, fetchLocation]);
 
   const handleDelete = async (boardroomId: string) => {
     if (
@@ -171,7 +171,7 @@ export default function LocationBoardroomsPage() {
               Location Not Found
             </h3>
             <p className="text-slate-500 text-center">
-              The location you're looking for doesn't exist or has been removed.
+              The location you&apos;re looking for doesn&apos;t exist or has been removed.
             </p>
           </CardContent>
         </Card>
@@ -244,10 +244,11 @@ export default function LocationBoardroomsPage() {
                   {/* Image */}
                   <div className="relative h-48 bg-gradient-to-br from-slate-100 to-slate-200">
                     {boardroom.imageUrl ? (
-                      <img
+                      <Image
                         src={boardroom.imageUrl}
                         alt={boardroom.name}
-                        className="w-full h-full object-cover"
+                        fill
+                        className="object-cover"
                       />
                     ) : (
                       <div className="flex items-center justify-center h-full">

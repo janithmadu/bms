@@ -113,7 +113,7 @@ export default function BookingsPage() {
 
   useEffect(() => {
     Promise.all([fetchBookings(), fetchLocations()]);
-  }, []);
+  }, [fetchLocations,fetchBookings]);
 
   const handleDelete = async (bookingId: string) => {
     if (
