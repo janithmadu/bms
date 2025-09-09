@@ -63,6 +63,9 @@ export async function GET(req: Request) {
       { status: 500 }
     );
   }
+  finally{
+    await prisma.$disconnect()
+  }
 }
 
 export async function POST(request: NextRequest) {
@@ -97,5 +100,8 @@ export async function POST(request: NextRequest) {
       { error: "Failed to create location" },
       { status: 500 }
     );
+  }
+  finally{
+    await prisma.$disconnect()
   }
 }

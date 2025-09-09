@@ -102,6 +102,9 @@ export async function PUT(
       { status: 500 }
     )
   }
+  finally{
+    await prisma.$disconnect()
+  }
 }
 
 export async function DELETE(
@@ -153,5 +156,8 @@ if (
       { error: 'Failed to delete user' },
       { status: 500 }
     )
+  }
+  finally{
+    await prisma.$disconnect()
   }
 }

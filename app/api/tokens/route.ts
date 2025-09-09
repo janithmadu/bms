@@ -23,6 +23,9 @@ export async function GET() {
       { status: 500 }
     )
   }
+  finally{
+    await prisma.$disconnect()
+  }
 }
 
 export async function PUT(request: NextRequest) {
@@ -58,5 +61,8 @@ export async function PUT(request: NextRequest) {
       { error: 'Failed to update tokens' },
       { status: 500 }
     )
+  }
+  finally{
+    await prisma.$disconnect()
   }
 }
