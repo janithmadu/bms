@@ -12,40 +12,27 @@ export async function GET(
     const userId = searchParams.get("userId")
     const role = searchParams.get("role")
 
+    if (!params?.id) {
+      return NextResponse.json({ error: "Invalid location ID" }, { status: 400 })
+    }
 
-    
-    // ✅ check user access using userId + locationId
+    // check user access
     const checkUserHasAccessToLocations = await prisma.user.findFirst({
       where: {
-        id: userId || "", // enforce user match
-        userLocations: {
-          some: {
-            locationId: params.id,
-          },
-        },
+        id: userId || "",
+        userLocations: { some: { locationId: params.id } },
       },
     })
 
-
-
-
-
-    
-
     if (!checkUserHasAccessToLocations && role !== "admin") {
-      return NextResponse.json(
-        { error: "Unauthorized access" },
-        { status: 403 }
-      )
+      return NextResponse.json({ error: "Unauthorized access" }, { status: 403 })
     }
 
     const location = await prisma.location.findUnique({
-      where: { id: params.id },
+      where: { id: params.id }, // or Number(params.id) if Int
       include: {
         boardrooms: {
-          include: {
-            _count: { select: { bookings: true } },
-          },
+          include: { _count: { select: { bookings: true } } },
         },
       },
     })
@@ -56,15 +43,9 @@ export async function GET(
 
     return NextResponse.json(location)
   } catch (error) {
-    // console.error("Error fetching location:", error)
-    return NextResponse.json(
-      { error: "Failed to fetch location" },
-      { status: 500 }
-    )
+    console.error("Error fetching location:", error)
+    return NextResponse.json({ error: "Failed to fetch location" }, { status: 500 })
   }
-  finally{
-      await prisma.$disconnect()
-    }
 }
 
 export async function PUT(

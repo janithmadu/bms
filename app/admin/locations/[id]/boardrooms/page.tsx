@@ -86,7 +86,7 @@ export default function LocationBoardroomsPage() {
     } else {
       fetchLocation();
     }
-  }, [locationId, status, fetchLocation]);
+  }, [locationId, status]);
 
   const handleDelete = async (boardroomId: string) => {
     if (

@@ -15,8 +15,9 @@ import { LocationDialog } from "@/components/admin/location-dialog";
 import { toast } from "sonner";
 import Link from "next/link";
 import { useSession } from "next-auth/react";
+import { useLocationsStore } from "@/stores/useLocationsStore";
 
-interface Location {
+export interface Location {
   id: string;
   name: string;
   address: string;
@@ -27,31 +28,21 @@ interface Location {
 }
 
 export default function LocationsPage() {
-  const [locations, setLocations] = useState<Location[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingLocation, setEditingLocation] = useState<Location | null>(null);
   const { data: session, status } = useSession();
-
-  const fetchLocations = async () => {
-    try {
-      const response = await fetch(
-        `/api/locations?userId=${session?.user.id}&role=${session?.user.role}`
-      );
-      const data = await response.json();
-      setLocations(Array.isArray(data) ? data : []);
-    } catch (error) {
-      console.error("Error fetching locations:", error);
-      toast.error("Failed to fetch locations");
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
+  const locations = useLocationsStore((state) => state.location);
+  const loading = useLocationsStore((state) => state.loading);
   useEffect(() => {
-    fetchLocations();
-  }, [session?.user.id,fetchLocations]);
+    setIsLoading(loading);
+  }, [loading]);
 
+  const UserID = session?.user.id;
+  const Role = session?.user.role;
+  const getLoacations = useLocationsStore((state) => state.fetchLocation);
+
+  
   const handleDelete = async (id: string) => {
     if (
       !confirm(
@@ -68,7 +59,7 @@ export default function LocationsPage() {
 
       if (response.ok) {
         toast.success("Location deleted successfully");
-        fetchLocations();
+        getLoacations(UserID as string, Role as string);
       } else {
         throw new Error("Failed to delete location");
       }
@@ -89,7 +80,7 @@ export default function LocationsPage() {
   };
 
   const handleSave = () => {
-    fetchLocations();
+    getLoacations(UserID as string, Role as string);
     handleCloseDialog();
   };
 
