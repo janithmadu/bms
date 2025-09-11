@@ -74,11 +74,13 @@ export async function GET() {
 
     return NextResponse.json(users);
   } catch (error) {
-    console.error("Error fetching users:", error);
+    // console.error("Error fetching users:", error);
     return NextResponse.json(
       { error: "Failed to fetch users" },
       { status: 500 }
     );
+  } finally {
+    await prisma.$disconnect();
   }
 }
 
@@ -150,8 +152,7 @@ export async function POST(request: NextRequest) {
       { error: "Failed to create user" },
       { status: 500 }
     );
-  }
-  finally{
-    await prisma.$disconnect()
+  } finally {
+    await prisma.$disconnect();
   }
 }
