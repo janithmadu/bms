@@ -194,7 +194,7 @@ export function BookingModal({ open, onOpenChange, boardroom, location }: Bookin
     return date >= today && date <= maxDate
   }
 
-  const bookedSlots = getBookedTimeslots()
+  const bookedSlots:any = getBookedTimeslots()
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -317,7 +317,7 @@ export function BookingModal({ open, onOpenChange, boardroom, location }: Bookin
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-2">
-                    {bookedSlots.map((slot, index) => (
+                    {bookedSlots.map((slot:any, index:number) => (
                       <div key={index} className={`flex items-center justify-between p-2 rounded-lg ${
                         slot.status === 'confirmed' ? 'bg-red-50' : 'bg-yellow-50'
                       }`}>
