@@ -292,8 +292,7 @@ export default async function HomePage() {
             </div>
           </div>
           <p className="text-sm text-slate-500">
-            © {new Date().getFullYear()} BookingHub. Built with Next.js,
-            Tailwind CSS, and modern web technologies. Powered by{" "}
+            © {new Date().getFullYear()} BookingHub.Powered by{" "}
             <span className="font-semibold">IWT</span>.
           </p>
         </div>
