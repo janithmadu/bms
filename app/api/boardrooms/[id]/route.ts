@@ -14,7 +14,7 @@ export async function GET(
         location: true,
         bookings: {
           where: {
-            status: 'confirmed',
+            status: { in: ['confirmed', 'pending'] }, // Show both confirmed and pending bookings
             date: {
               gte: new Date(new Date().setHours(0, 0, 0, 0))
             }

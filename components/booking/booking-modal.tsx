@@ -318,9 +318,19 @@ export function BookingModal({ open, onOpenChange, boardroom, location }: Bookin
                 <CardContent>
                   <div className="space-y-2">
                     {bookedSlots.map((slot, index) => (
-                      <div key={index} className="flex items-center justify-between p-2 bg-red-50 rounded-lg">
+                      <div key={index} className={`flex items-center justify-between p-2 rounded-lg ${
+                        slot.status === 'confirmed' ? 'bg-red-50' : 'bg-yellow-50'
+                      }`}>
                         <span className="text-sm font-medium">{slot.title}</span>
-                        <span className="text-sm text-slate-600">{slot.start} - {slot.end}</span>
+                        <div className="flex items-center space-x-2">
+                          <span className="text-sm text-slate-600">{slot.start} - {slot.end}</span>
+                          <Badge 
+                            variant={slot.status === 'confirmed' ? 'destructive' : 'secondary'}
+                            className="text-xs"
+                          >
+                            {slot.status}
+                          </Badge>
+                        </div>
                       </div>
                     ))}
                   </div>

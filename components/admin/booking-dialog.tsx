@@ -99,8 +99,6 @@ const { data: session, status } = useSession();
     } catch (error) {
       console.error("Error fetching locations:", error);
       toast.error("Failed to fetch locations");
-    } finally {
-      setIsLoading(false);
     }
   };
 

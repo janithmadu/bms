@@ -35,7 +35,7 @@ export async function POST(request: NextRequest) {
     const conflictingBooking = await prisma.booking.findFirst({
       where: {
         boardroomId,
-        status: 'confirmed',
+        status: { in: ['confirmed', 'pending'] }, // Block both confirmed and pending bookings
         OR: [
           {
             AND: [

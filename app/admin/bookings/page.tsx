@@ -156,6 +156,35 @@ export default function BookingsPage() {
     handleCloseDialog();
   };
 
+  const handleStatusChange = async (bookingId: string, newStatus: string) => {
+    const statusText = newStatus === "confirmed" ? "approve" : "cancel";
+    
+    if (!confirm(`Are you sure you want to ${statusText} this booking?`)) {
+      return;
+    }
+
+    try {
+      const response = await fetch(`/api/admin/bookings/${bookingId}/status`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ status: newStatus }),
+      });
+
+      if (response.ok) {
+        toast.success(`Booking ${statusText}ed successfully`);
+        fetchBookings();
+      } else {
+        const error = await response.json();
+        toast.error(error.error || `Failed to ${statusText} booking`);
+      }
+    } catch (error) {
+      console.error(`Error ${statusText}ing booking:`, error);
+      toast.error(`Failed to ${statusText} booking`);
+    }
+  };
+
   const getDateLabel = (dateString: string) => {
     const date = new Date(dateString);
     if (isToday(date)) return "Today";
@@ -384,11 +413,47 @@ export default function BookingsPage() {
                             variant={
                               booking.status === "confirmed"
                                 ? "default"
+                                : booking.status === "pending"
+                                ? "secondary"
                                 : "destructive"
                             }
                           >
                             {booking.status}
                           </Badge>
+                          
+                          {/* Status Change Buttons */}
+                          {booking.status === "pending" && (
+                            <div className="flex space-x-1">
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => handleStatusChange(booking.id, "confirmed")}
+                                className="bg-green-50 hover:bg-green-100 text-green-700 border-green-200"
+                              >
+                                Approve
+                              </Button>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => handleStatusChange(booking.id, "cancelled")}
+                                className="bg-red-50 hover:bg-red-100 text-red-700 border-red-200"
+                              >
+                                Reject
+                              </Button>
+                            </div>
+                          )}
+                          
+                          {booking.status === "confirmed" && (
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => handleStatusChange(booking.id, "cancelled")}
+                              className="bg-red-50 hover:bg-red-100 text-red-700 border-red-200"
+                            >
+                              Cancel
+                            </Button>
+                          )}
+                          
                           <div className="flex space-x-1">
                             <Button
                               variant="ghost"

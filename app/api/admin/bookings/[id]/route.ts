@@ -39,7 +39,7 @@ export async function PUT(
       where: {
         id: { not: params.id },
         boardroomId,
-        status: 'confirmed',
+        status: { in: ['confirmed', 'pending'] }, // Block both confirmed and pending bookings
         OR: [
           {
             AND: [
