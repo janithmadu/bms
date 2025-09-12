@@ -53,7 +53,7 @@ export default function LocationBoardroomsPage() {
     }
 
     fetchLocation()
-  }, [locationId])
+  }, [])
 
   const handleBookRoom = (boardroom: Boardroom) => {
     setSelectedBoardroom(boardroom)
