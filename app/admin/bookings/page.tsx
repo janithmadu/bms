@@ -94,7 +94,7 @@ export default function BookingsPage() {
     }
   };
 
-  const { data: session, status } = useSession();
+  const { data: session } = useSession();
 
   const fetchLocations = async () => {
     try {
@@ -158,7 +158,7 @@ export default function BookingsPage() {
 
   const handleStatusChange = async (bookingId: string, newStatus: string) => {
     const statusText = newStatus === "confirmed" ? "approve" : "cancel";
-    
+
     if (!confirm(`Are you sure you want to ${statusText} this booking?`)) {
       return;
     }
@@ -262,7 +262,7 @@ export default function BookingsPage() {
           </Button>
         </PageHeader>
 
-        <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
+        <div className="grid grid-cols-1 2xl:grid-cols-4 gap-6">
           {/* Sidebar - Filters and Calendar */}
           <div className="lg:col-span-1 space-y-6">
             {/* Calendar */}
@@ -274,12 +274,14 @@ export default function BookingsPage() {
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                <Calendar
-                  mode="single"
-                  selected={selectedDate}
-                  onSelect={setSelectedDate}
-                  className="rounded-md border"
-                />
+                <div className="flex justify-center">
+                  <Calendar
+                    mode="single"
+                    selected={selectedDate}
+                    onSelect={setSelectedDate}
+                    className="w-full max-w-[300px] rounded-md border"
+                  />
+                </div>
                 <Button
                   variant="outline"
                   size="sm"
@@ -355,9 +357,9 @@ export default function BookingsPage() {
           </div>
 
           {/* Main Content - Bookings List */}
-          <div className="lg:col-span-3">
+          <div className="col-span-3">
             {filteredBookings.length === 0 ? (
-              <Card>
+              <Card className="">
                 <CardContent className="flex flex-col items-center justify-center py-16">
                   <CalendarIcon className="h-16 w-16 text-slate-300 mb-4" />
                   <h3 className="text-xl font-semibold text-slate-600 mb-2">
@@ -420,14 +422,16 @@ export default function BookingsPage() {
                           >
                             {booking.status}
                           </Badge>
-                          
+
                           {/* Status Change Buttons */}
                           {booking.status === "pending" && (
                             <div className="flex space-x-1">
                               <Button
                                 variant="outline"
                                 size="sm"
-                                onClick={() => handleStatusChange(booking.id, "confirmed")}
+                                onClick={() =>
+                                  handleStatusChange(booking.id, "confirmed")
+                                }
                                 className="bg-green-50 hover:bg-green-100 text-green-700 border-green-200"
                               >
                                 Approve
@@ -435,25 +439,29 @@ export default function BookingsPage() {
                               <Button
                                 variant="outline"
                                 size="sm"
-                                onClick={() => handleStatusChange(booking.id, "cancelled")}
+                                onClick={() =>
+                                  handleStatusChange(booking.id, "cancelled")
+                                }
                                 className="bg-red-50 hover:bg-red-100 text-red-700 border-red-200"
                               >
                                 Reject
                               </Button>
                             </div>
                           )}
-                          
+
                           {booking.status === "confirmed" && (
                             <Button
                               variant="outline"
                               size="sm"
-                              onClick={() => handleStatusChange(booking.id, "cancelled")}
+                              onClick={() =>
+                                handleStatusChange(booking.id, "cancelled")
+                              }
                               className="bg-red-50 hover:bg-red-100 text-red-700 border-red-200"
                             >
                               Cancel
                             </Button>
                           )}
-                          
+
                           <div className="flex space-x-1">
                             <Button
                               variant="ghost"
