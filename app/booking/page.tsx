@@ -36,7 +36,7 @@ export default function BookingPage() {
     }
 
     fetchLocations()
-  }, [])
+  })
 
   if (isLoading) {
     return (
