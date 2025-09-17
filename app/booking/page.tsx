@@ -19,6 +19,9 @@ export default function BookingPage() {
   const [locations, setLocations] = useState<Location[]>([])
   const [isLoading, setIsLoading] = useState(true)
 
+  console.log(locations);
+  
+
   useEffect(() => {
     const fetchLocations = async () => {
       try {
