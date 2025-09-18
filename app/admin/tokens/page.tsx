@@ -339,7 +339,7 @@ export default function TokensPage() {
           <CardHeader>
             <CardTitle>Add Extra Tokens</CardTitle>
             <CardDescription>
-              Add additional tokens to the selected user's available count
+              Add additional tokens to the selected user available count
             </CardDescription>
           </CardHeader>
           <CardContent>
