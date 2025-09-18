@@ -10,7 +10,7 @@ datasource db {
 // NextAuth.js Models
 model Account {
   id                String   @id @default(cuid())
-  userId            String
+  userId            String    @db.VarChar(5)
   type              String
   provider          String
   providerAccountId String
@@ -33,7 +33,7 @@ model Account {
 model Session {
   id           String   @id @default(cuid())
   sessionToken String   @unique
-  userId       String
+  userId       String   @db.VarChar(5)
   expires      DateTime
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
@@ -44,21 +44,28 @@ model Session {
 }
 
 model User {
-  id            String    @id @default(cuid())
-  name          String?
-  email         String    @unique
-  emailVerified DateTime?
-  image         String?
-  role          String    @default("user") // admin, manager, user
-  status        String    @default("active") // active, inactive
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
-  accounts      Account[]
-  sessions      Session[]
-  password      String 
-  
+   id              String    @id @default(cuid()) @db.VarChar(5)
+  name            String?
+  email           String    @unique
+  emailVerified   DateTime?
+  image           String?
+  role            String    @default("user") // admin, manager, user
+  status          String    @default("active") // active, inactive
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  accounts        Account[]
+  sessions        Session[]
+  password        String
+  tokensAvailable Int       @default(0)
+  tokensUsed      Int       @default(0)
+  tokenLimit      Int       @default(40) // Monthly limit per user
+  lastTokenReset  DateTime  @default(now())
+
   // Location access for managers and users
-  userLocations UserLocation[]
+  userLocations   UserLocation[]
+
+  // Relation with Booking
+  bookings        Booking[]
 
   @@index([email])
   @@index([role])
@@ -67,7 +74,7 @@ model User {
 
 model UserLocation {
   id         String   @id @default(cuid())
-  userId     String
+  userId     String @db.VarChar(5)
   locationId String
   user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   location   Location @relation(fields: [locationId], references: [id], onDelete: Cascade)
@@ -137,17 +144,22 @@ model Booking {
   status      String    @default("pending") // pending, confirmed, cancelled
   boardroomId String
   boardroom   Boardroom @relation(fields: [boardroomId], references: [id], onDelete: Cascade)
+  UserID String @default("") @db.VarChar(5)
+  // Relation with User
+  bookerId    String  @default("7Wcpw") @db.VarChar(5)
+  booker      User      @relation(fields: [bookerId], references: [id], onDelete: Cascade)
+  isExsisting Boolean @default(false)
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
-
+  phoneNumber String    @default("")
   @@index([boardroomId])
   @@index([date])
   @@index([startTime, endTime])
   @@index([bookerEmail])
   @@index([status])
   @@index([createdAt])
+  @@index([bookerId])
 }
-
 model Token {
   id                 String   @id @default("singleton")
   initialCount       Int      @default(40)

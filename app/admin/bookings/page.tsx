@@ -32,6 +32,8 @@ import {
   Edit,
   Trash2,
   Plus,
+  Phone,
+  Download,
 } from "lucide-react";
 import { format, isToday, isTomorrow, isYesterday } from "date-fns";
 import { toast } from "sonner";
@@ -43,11 +45,15 @@ interface Booking {
   eventTitle: string;
   bookerName: string;
   bookerEmail: string;
+  bookerId: string;
+  isExsisting: boolean;
+  UserID: string;
   date: string;
   startTime: string;
   endTime: string;
   duration: number;
   tokensUsed: number;
+  phoneNumber: string;
   status: string;
   boardroom: {
     id: string;
@@ -68,6 +74,26 @@ interface Location {
   boardrooms: { id: string; name: string }[];
 }
 
+// Utility function to download CSV
+const downloadCSV = (data: any[], headers: string[], filename: string) => {
+  const csvContent = [
+    headers.join(","),
+    ...data.map(row =>
+      row.map((field: any) => `"${String(field).replace(/"/g, '""')}"`).join(",")
+    )
+  ].join("\n");
+
+  const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.setAttribute("href", url);
+  link.setAttribute("download", filename);
+  link.style.visibility = "hidden";
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+};
+
 export default function BookingsPage() {
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [locations, setLocations] = useState<Location[]>([]);
@@ -78,6 +104,7 @@ export default function BookingsPage() {
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedLocation, setSelectedLocation] = useState<string>("all");
   const [selectedStatus, setSelectedStatus] = useState<string>("all");
+  const [selectedType, setSelectedType] = useState<string>("all");
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingBooking, setEditingBooking] = useState<Booking | null>(null);
 
@@ -102,6 +129,7 @@ export default function BookingsPage() {
         `/api/locations?userId=${session?.user.id}&role=${session?.user.role}`
       );
       const data = await response.json();
+
       setLocations(Array.isArray(data) ? data : []);
     } catch (error) {
       console.error("Error fetching locations:", error);
@@ -113,9 +141,9 @@ export default function BookingsPage() {
 
   useEffect(() => {
     Promise.all([fetchBookings(), fetchLocations()]);
-  }, []);
+  }, [session?.user.id]);
 
-  const handleDelete = async (bookingId: string) => {
+  const handleDelete = async (bookingId: string, UserID: string) => {
     if (
       !confirm(
         "Are you sure you want to cancel this booking? Tokens will be refunded."
@@ -127,6 +155,7 @@ export default function BookingsPage() {
     try {
       const response = await fetch(`/api/admin/bookings/${bookingId}`, {
         method: "DELETE",
+        body: JSON.stringify({ UserID }),
       });
 
       if (response.ok) {
@@ -156,7 +185,11 @@ export default function BookingsPage() {
     handleCloseDialog();
   };
 
-  const handleStatusChange = async (bookingId: string, newStatus: string) => {
+  const handleStatusChange = async (
+    bookingId: string,
+    UserID: string,
+    newStatus: string
+  ) => {
     const statusText = newStatus === "confirmed" ? "approve" : "cancel";
 
     if (!confirm(`Are you sure you want to ${statusText} this booking?`)) {
@@ -169,7 +202,7 @@ export default function BookingsPage() {
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ status: newStatus }),
+        body: JSON.stringify({ status: newStatus, UserID }),
       });
 
       if (response.ok) {
@@ -193,6 +226,62 @@ export default function BookingsPage() {
     return format(date, "MMM d, yyyy");
   };
 
+  const exportToCSV = () => {
+    if (filteredBookings.length === 0) {
+      toast.error("No bookings to export");
+      return;
+    }
+
+    const headers = [
+      "ID",
+      "Event Title",
+      "Booker Name",
+      "Booker Email",
+      "Booker ID",
+      "User ID",
+      "Date",
+      "Start Time",
+      "End Time",
+      "Duration (mins)",
+      "Tokens Used",
+      "Phone Number",
+      "Status",
+      "Boardroom Name",
+      "Boardroom Capacity",
+      "Location Name",
+      "Location Address",
+      "Created At",
+      "Booking Type"
+    ];
+
+    const csvData = filteredBookings.map((booking) => [
+      booking.id,
+      booking.eventTitle,
+      booking.bookerName,
+      booking.bookerEmail,
+      booking.bookerId,
+      booking.UserID,
+      booking.date,
+      format(new Date(booking.startTime), "HH:mm"),
+      format(new Date(booking.endTime), "HH:mm"),
+      booking.duration,
+      booking.tokensUsed,
+      booking.phoneNumber,
+      booking.status,
+      booking.boardroom.name,
+      booking.boardroom.capacity,
+      booking.boardroom.location.name,
+      booking.boardroom.location.address,
+      format(new Date(booking.createdAt), "yyyy-MM-dd HH:mm"),
+      booking.isExsisting ? "Internal" : "External"
+    ]);
+
+    // Generate filename with current date
+    const dateStr = format(new Date(), "yyyy-MM-dd");
+    downloadCSV(csvData, headers, `bookings_export_${dateStr}.csv`);
+    toast.success("CSV exported successfully");
+  };
+
   const filteredBookings = bookings.filter((booking) => {
     const matchesSearch =
       booking.eventTitle.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -203,6 +292,14 @@ export default function BookingsPage() {
     const matchesLocation =
       selectedLocation === "all" ||
       booking.boardroom.location.id === selectedLocation;
+    const Type =
+      selectedType === "internel"
+        ? true
+        : selectedType === "external"
+        ? false
+        : "all";
+    const matchesType = selectedType === "all" || booking.isExsisting === Type;
+
     const matchesStatus =
       selectedStatus === "all" || booking.status === selectedStatus;
     const matchesDate =
@@ -210,7 +307,13 @@ export default function BookingsPage() {
       format(new Date(booking.date), "yyyy-MM-dd") ===
         format(selectedDate, "yyyy-MM-dd");
 
-    return matchesSearch && matchesLocation && matchesStatus && matchesDate;
+    return (
+      matchesSearch &&
+      matchesLocation &&
+      matchesStatus &&
+      matchesDate &&
+      matchesType
+    );
   });
 
   if (isLoading) {
@@ -253,13 +356,23 @@ export default function BookingsPage() {
           title="Bookings Management"
           description="View and manage all room bookings across locations"
         >
-          <Button
-            onClick={() => setIsDialogOpen(true)}
-            className="bg-blue-600 hover:bg-blue-700"
-          >
-            <Plus className="h-4 w-4 mr-2" />
-            New Booking
-          </Button>
+          <div className="flex gap-2">
+            <Button
+              variant="outline"
+              onClick={exportToCSV}
+              disabled={filteredBookings.length === 0}
+            >
+              <Download className="h-4 w-4 mr-2" />
+              Export CSV
+            </Button>
+            <Button
+              onClick={() => setIsDialogOpen(true)}
+              className="bg-blue-600 hover:bg-blue-700"
+            >
+              <Plus className="h-4 w-4 mr-2" />
+              New Booking
+            </Button>
+          </div>
         </PageHeader>
 
         <div className="grid grid-cols-1 2xl:grid-cols-4 gap-6">
@@ -352,6 +465,20 @@ export default function BookingsPage() {
                     </SelectContent>
                   </Select>
                 </div>
+
+                <div className="grid gap-2">
+                  <Label>Booking Type</Label>
+                  <Select value={selectedType} onValueChange={setSelectedType}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Booking Type" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Types</SelectItem>
+                      <SelectItem value="external">External</SelectItem>
+                      <SelectItem value="internel">Internel</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
               </CardContent>
             </Card>
           </div>
@@ -430,7 +557,11 @@ export default function BookingsPage() {
                                 variant="outline"
                                 size="sm"
                                 onClick={() =>
-                                  handleStatusChange(booking.id, "confirmed")
+                                  handleStatusChange(
+                                    booking.id,
+                                    booking.UserID,
+                                    "confirmed"
+                                  )
                                 }
                                 className="bg-green-50 hover:bg-green-100 text-green-700 border-green-200"
                               >
@@ -440,7 +571,11 @@ export default function BookingsPage() {
                                 variant="outline"
                                 size="sm"
                                 onClick={() =>
-                                  handleStatusChange(booking.id, "cancelled")
+                                  handleStatusChange(
+                                    booking.id,
+                                    booking.UserID,
+                                    "cancelled"
+                                  )
                                 }
                                 className="bg-red-50 hover:bg-red-100 text-red-700 border-red-200"
                               >
@@ -454,7 +589,11 @@ export default function BookingsPage() {
                               variant="outline"
                               size="sm"
                               onClick={() =>
-                                handleStatusChange(booking.id, "cancelled")
+                                handleStatusChange(
+                                  booking.id,
+                                  booking.UserID,
+                                  "cancelled"
+                                )
                               }
                               className="bg-red-50 hover:bg-red-100 text-red-700 border-red-200"
                             >
@@ -473,7 +612,9 @@ export default function BookingsPage() {
                             <Button
                               variant="ghost"
                               size="sm"
-                              onClick={() => handleDelete(booking.id)}
+                              onClick={() =>
+                                handleDelete(booking.id, booking.UserID)
+                              }
                             >
                               <Trash2 className="h-4 w-4" />
                             </Button>
@@ -503,9 +644,33 @@ export default function BookingsPage() {
                             <Mail className="h-4 w-4 mr-2" />
                             {booking.bookerName} ({booking.bookerEmail})
                           </div>
+
+                          <div className="flex items-center text-sm text-slate-600">
+                            <Phone className="h-4 w-4 mr-2" />(
+                            {booking.phoneNumber})
+                          </div>
                           <div className="text-sm text-slate-500">
-                            {booking.tokensUsed} token
-                            {booking.tokensUsed !== 1 ? "s" : ""} used
+                            {booking.isExsisting ? (
+                              <>
+                                {booking.tokensUsed} token
+                                {booking.tokensUsed !== 1 ? "s" : ""} used
+                              </>
+                            ) : (
+                              "External Booking"
+                            )}
+                          </div>
+                        </div>
+                        {/* New section for IDs */}
+                        <div className="flex items-center justify-between mt-2">
+                          <div className="text-xs text-slate-400">
+                            Booker ID: {booking.bookerId}
+                          </div>
+                          <div className="text-xs text-slate-400">
+                            {booking.isExsisting ? (
+                              <> User ID: {booking.UserID}</>
+                            ) : (
+                              <></>
+                            )}
                           </div>
                         </div>
                       </div>

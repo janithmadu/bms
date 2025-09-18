@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import bcrypt from "bcryptjs";
+import shortid from 'shortid';
 
 export async function GET() {
   try {
@@ -120,6 +121,7 @@ export async function POST(request: NextRequest) {
     // Create user with location assignments
     const user = await prisma.user.create({
       data: {
+        id:shortid.generate().slice(0, 5),
         name,
         email,
         password: hashedPassword,

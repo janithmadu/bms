@@ -1,5 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+export const revalidate = 0
+export const dynamic = 'force-dynamic'
 export async function GET(req: Request) {
   try {
     // Extract userId from query params
@@ -20,6 +22,8 @@ export async function GET(req: Request) {
       },
     });
 
+    
+
     return NextResponse.json(locations);
   } catch (error) {
     console.error("Error fetching locations:", error);
@@ -28,7 +32,5 @@ export async function GET(req: Request) {
       { status: 500 }
     );
   }
-  finally{
-      await prisma.$disconnect()
-    }
+  
 }

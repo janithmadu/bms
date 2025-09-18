@@ -1,64 +1,79 @@
-"use client"
+"use client";
 
-import { useEffect, useState } from 'react'
-import { useParams } from 'next/navigation'
-import Link from 'next/link'
-import Image from 'next/image'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { Button } from '@/components/ui/button'
-import { Badge } from '@/components/ui/badge'
-import { ArrowLeft, MapPin, Users, Maximize2, Calendar, Building2 } from 'lucide-react'
-import { BookingModal } from '@/components/booking/booking-modal'
+import { useEffect, useState } from "react";
+import { useParams } from "next/navigation";
+import Link from "next/link";
+import Image from "next/image";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import {
+  ArrowLeft,
+  MapPin,
+  Users,
+  Maximize2,
+  Calendar,
+  Building2,
+} from "lucide-react";
+import { BookingModal } from "@/components/booking/booking-modal";
 
 interface Boardroom {
-  id: string
-  name: string
-  description?: string
-  dimensions?: string
-  capacity: number
-  imageUrl?: string
-  facilities: string[]
+  id: string;
+  name: string;
+  description?: string;
+  dimensions?: string;
+  capacity: number;
+  imageUrl?: string;
+  facilities: string[];
 }
 
 interface Location {
-  id: string
-  name: string
-  address: string
-  description?: string
-  imageUrl?: string
-  boardrooms: Boardroom[]
+  id: string;
+  name: string;
+  address: string;
+  description?: string;
+  imageUrl?: string;
+  boardrooms: Boardroom[];
 }
 
 export default function LocationBoardroomsPage() {
-  const params = useParams()
-  const locationId = params.locationId as string
-  const [location, setLocation] = useState<Location | null>(null)
-  const [selectedBoardroom, setSelectedBoardroom] = useState<Boardroom | null>(null)
-  const [isLoading, setIsLoading] = useState(true)
-  const [isModalOpen, setIsModalOpen] = useState(false)
+  const params = useParams();
+  const locationId = params.locationId as string;
+  const [location, setLocation] = useState<Location | null>(null);
+  const [selectedBoardroom, setSelectedBoardroom] = useState<Boardroom | null>(
+    null
+  );
+  const [isLoading, setIsLoading] = useState(true);
+  const [isModalOpen, setIsModalOpen] = useState(false);
 
   useEffect(() => {
     const fetchLocation = async () => {
       try {
-        const response = await fetch(`/api/public/locations/${locationId}`)
+        const response = await fetch(`/api/public/locations/${locationId}`);
         if (response.ok) {
-          const data = await response.json()
-          setLocation(data)
+          const data = await response.json();
+          setLocation(data);
         }
       } catch (error) {
-        console.error('Error fetching location:', error)
+        console.error("Error fetching location:", error);
       } finally {
-        setIsLoading(false)
+        setIsLoading(false);
       }
-    }
+    };
 
-    fetchLocation()
-  }, [])
+    fetchLocation();
+  }, []);
 
   const handleBookRoom = (boardroom: Boardroom) => {
-    setSelectedBoardroom(boardroom)
-    setIsModalOpen(true)
-  }
+    setSelectedBoardroom(boardroom);
+    setIsModalOpen(true);
+  };
 
   if (isLoading) {
     return (
@@ -85,7 +100,7 @@ export default function LocationBoardroomsPage() {
           </div>
         </div>
       </div>
-    )
+    );
   }
 
   if (!location) {
@@ -94,9 +109,12 @@ export default function LocationBoardroomsPage() {
         <Card className="max-w-md bg-white/80 backdrop-blur-sm border-white/20">
           <CardContent className="flex flex-col items-center justify-center py-16">
             <Building2 className="h-16 w-16 text-slate-300 mb-4" />
-            <h3 className="text-xl font-semibold text-slate-600 mb-2">Location Not Found</h3>
+            <h3 className="text-xl font-semibold text-slate-600 mb-2">
+              Location Not Found
+            </h3>
             <p className="text-slate-500 text-center mb-6">
-              The location you&apos;re looking for doesn&apos;t exist or has been removed.
+              The location you&apos;re looking for doesn&apos;t exist or has
+              been removed.
             </p>
             <Button asChild>
               <Link href="/booking">Back to Locations</Link>
@@ -104,7 +122,7 @@ export default function LocationBoardroomsPage() {
           </CardContent>
         </Card>
       </div>
-    )
+    );
   }
 
   return (
@@ -118,7 +136,11 @@ export default function LocationBoardroomsPage() {
 
         <div className="relative container mx-auto px-4 py-8">
           {/* Back Button */}
-          <Button variant="ghost" asChild className="mb-6 hover:bg-white/50 transition-colors">
+          <Button
+            variant="ghost"
+            asChild
+            className="mb-6 hover:bg-white/50 transition-colors"
+          >
             <Link href="/booking" className="flex items-center">
               <ArrowLeft className="h-4 w-4 mr-2" />
               Back to Locations
@@ -142,13 +164,17 @@ export default function LocationBoardroomsPage() {
               )}
               <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent" />
               <div className="absolute bottom-6 left-6 text-white">
-                <h1 className="text-3xl md:text-4xl font-bold mb-2">{location.name}</h1>
+                <h1 className="text-3xl md:text-4xl font-bold mb-2">
+                  {location.name}
+                </h1>
                 <div className="flex items-center text-white/90 mb-2">
                   <MapPin className="h-5 w-5 mr-2" />
                   {location.address}
                 </div>
                 {location.description && (
-                  <p className="text-white/80 max-w-2xl">{location.description}</p>
+                  <p className="text-white/80 max-w-2xl">
+                    {location.description}
+                  </p>
                 )}
               </div>
             </div>
@@ -156,25 +182,31 @@ export default function LocationBoardroomsPage() {
 
           {/* Boardrooms Section */}
           <div className="mb-8">
-            <h2 className="text-2xl md:text-3xl font-bold text-slate-900 mb-2">Available Boardrooms</h2>
+            <h2 className="text-2xl md:text-3xl font-bold text-slate-900 mb-2">
+              Available Boardrooms
+            </h2>
             <p className="text-slate-600 mb-8">
-              Choose from {location.boardrooms.length} premium meeting space{location.boardrooms.length !== 1 ? 's' : ''} at this location
+              Choose from {location.boardrooms.length} premium meeting space
+              {location.boardrooms.length !== 1 ? "s" : ""} at this location
             </p>
 
             {location.boardrooms.length === 0 ? (
               <Card className="bg-white/80 backdrop-blur-sm border-white/20">
                 <CardContent className="flex flex-col items-center justify-center py-16">
                   <Calendar className="h-16 w-16 text-slate-300 mb-4" />
-                  <h3 className="text-xl font-semibold text-slate-600 mb-2">No Boardrooms Available</h3>
+                  <h3 className="text-xl font-semibold text-slate-600 mb-2">
+                    No Boardrooms Available
+                  </h3>
                   <p className="text-slate-500 text-center">
-                    This location doesn&apos;t have any boardrooms set up yet. Please check back later.
+                    This location doesn&apos;t have any boardrooms set up yet.
+                    Please check back later.
                   </p>
                 </CardContent>
               </Card>
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 {location.boardrooms.map((boardroom) => (
-                  <Card 
+                  <Card
                     key={boardroom.id}
                     className="group hover:shadow-2xl transition-all duration-300 transform hover:scale-105 bg-white/80 backdrop-blur-sm border-white/20 overflow-hidden"
                   >
@@ -200,7 +232,8 @@ export default function LocationBoardroomsPage() {
                         {boardroom.name}
                       </CardTitle>
                       <CardDescription className="line-clamp-2">
-                        {boardroom.description || 'Modern meeting room with all essential amenities'}
+                        {boardroom.description ||
+                          "Modern meeting room with all essential amenities"}
                       </CardDescription>
                     </CardHeader>
 
@@ -224,11 +257,17 @@ export default function LocationBoardroomsPage() {
                         {boardroom.facilities.length > 0 && (
                           <div>
                             <div className="flex flex-wrap gap-1">
-                              {boardroom.facilities.slice(0, 3).map((facility, index) => (
-                                <Badge key={index} variant="secondary" className="text-xs">
-                                  {facility}
-                                </Badge>
-                              ))}
+                              {boardroom.facilities
+                                .slice(0, 3)
+                                .map((facility, index) => (
+                                  <Badge
+                                    key={index}
+                                    variant="secondary"
+                                    className="text-xs"
+                                  >
+                                    {facility}
+                                  </Badge>
+                                ))}
                               {boardroom.facilities.length > 3 && (
                                 <Badge variant="secondary" className="text-xs">
                                   +{boardroom.facilities.length - 3} more
@@ -239,7 +278,7 @@ export default function LocationBoardroomsPage() {
                         )}
                       </div>
 
-                      <Button 
+                      <Button
                         onClick={() => handleBookRoom(boardroom)}
                         className="w-full bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white font-semibold shadow-lg transition-all duration-200 group-hover:shadow-xl"
                       >
@@ -265,5 +304,5 @@ export default function LocationBoardroomsPage() {
         />
       )}
     </>
-  )
+  );
 }
