@@ -33,8 +33,8 @@ interface BookingModalProps {
 }
 
 interface TokenData {
-  availableCount: number;
-  tokensUsedThisMonth: number;
+  tokensAvailable: number;
+  tokensUsed: number;
   initialCount: number;
 }
 
@@ -64,21 +64,22 @@ export function BookingModal({
 
   useEffect(() => {
     if (open) {
-      fetchTokenData();
+      fetchTokenData(userId);
       if (boardroom?.id) {
         fetchBoardroomBookings();
       }
     }
-  }, [open, boardroom?.id]);
+  }, [open, boardroom?.id, userId]);
 
   useEffect(() => {
     calculateTokensRequired();
   }, [formData.startTime, formData.endTime]);
 
-  const fetchTokenData = async () => {
+  const fetchTokenData = async (id: string) => {
     try {
-      const response = await fetch("/api/tokens");
+      const response = await fetch(`/api/public/users/${id}`);
       const data = await response.json();
+
       setTokenData(data);
     } catch (error) {
       console.error("Error fetching token data:", error);
@@ -122,16 +123,20 @@ export function BookingModal({
       }));
   };
 
-  const isTimeSlotAvailable = (startTime: string, endTime: string) => {
-    const bookedSlots = getBookedTimeslots();
-    const start = new Date(`2000-01-01T${startTime}`);
-    const end = new Date(`2000-01-01T${endTime}`);
-    return !bookedSlots.some((slot) => {
-      const slotStart = new Date(`2000-01-01T${slot.start}`);
-      const slotEnd = new Date(`2000-01-01T${slot.end}`);
-      return start < slotEnd && end > slotStart;
-    });
-  };
+const isTimeSlotAvailable = (startTime: string, endTime: string) => {
+  const bookedSlots = getBookedTimeslots();
+
+  const start = new Date(`2000-01-01T${startTime}:00`);
+  const end = new Date(`2000-01-01T${endTime}:00`);
+
+  return !bookedSlots.some((slot) => {
+    const slotStart = new Date(`2000-01-01T${slot.start}:00`);
+    const slotEnd = new Date(`2000-01-01T${slot.end}:00`);
+
+    // Allow exact match: one ends when the other starts
+    return start < slotEnd && end > slotStart;
+  });
+};
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -143,7 +148,7 @@ export function BookingModal({
       toast.error("This time slot conflicts with an existing booking");
       return;
     }
-    if (tokenData && tokensRequired > tokenData.availableCount) {
+    if (tokenData && tokensRequired > tokenData.tokensAvailable) {
       toast.error("Insufficient tokens available for this booking");
       return;
     }
@@ -174,7 +179,7 @@ export function BookingModal({
           endTime: endDateTime.toISOString(),
           boardroomId: boardroom.id,
           isExistingUser,
-          userId: isExistingUser ? userId : null,
+          UserID: isExistingUser ? userId : null,
         }),
       });
 
@@ -304,14 +309,14 @@ export function BookingModal({
                     <div className="flex justify-between">
                       <span className="text-sm text-slate-600">Available:</span>
                       <span className="font-medium text-green-600">
-                        {tokenData.availableCount} tokens
+                        {tokenData.tokensAvailable} tokens
                       </span>
                     </div>
                     <div className="flex justify-between">
                       <span className="text-sm text-slate-600">Required:</span>
                       <span
                         className={`font-medium ${
-                          tokensRequired > tokenData.availableCount
+                          tokensRequired > tokenData.tokensAvailable
                             ? "text-red-600"
                             : "text-blue-600"
                         }`}
@@ -320,7 +325,7 @@ export function BookingModal({
                         {tokensRequired !== 1 ? "s" : ""}
                       </span>
                     </div>
-                    {tokensRequired > tokenData.availableCount && (
+                    {tokensRequired > tokenData.tokensAvailable && (
                       <div className="flex items-center text-red-600 text-sm mt-2">
                         <AlertCircle className="h-4 w-4 mr-1" />
                         Insufficient tokens available
@@ -555,7 +560,7 @@ export function BookingModal({
                     formData.endTime &&
                     isTimeSlotAvailable(formData.startTime, formData.endTime) &&
                     tokenData &&
-                    tokensRequired <= tokenData.availableCount &&
+                    tokensRequired <= tokenData.tokensAvailable &&
                     tokensRequired > 0 && (
                       <div className="flex items-center text-green-600 text-sm">
                         <CheckCircle className="h-4 w-4 mr-1" />

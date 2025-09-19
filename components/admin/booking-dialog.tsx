@@ -35,7 +35,7 @@ import {
   Coins,
   AlertCircle,
 } from "lucide-react";
-import { format, addDays, isBefore, startOfDay } from "date-fns";
+import { format, addDays, isSameDay, startOfDay } from "date-fns";
 import { toast } from "sonner";
 import { useSession } from "next-auth/react";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -45,6 +45,7 @@ interface BookingDialogProps {
   onOpenChange: (open: boolean) => void;
   booking?: any;
   onSave: () => void;
+
 }
 
 interface Location {
@@ -99,9 +100,31 @@ export function BookingDialog({
   const [isExistingUser, setIsExistingUser] = useState(false);
   const [userId, setUserId] = useState("");
   const [isFetchingUser, setIsFetchingUser] = useState(false);
+  const [existingBookings, setExistingBookings] = useState<any[]>([]);
+
+  
+  const fetchBoardroomBookings = async () => {
+    try {
+      const response = await fetch(`/api/boardrooms/${formData.boardroomId}`);
+      const data = await response.json();
+      setExistingBookings(data.bookings || []);
+    } catch (error) {
+      console.error("Error fetching bookings:", error);
+    }
+  };
+
+    useEffect(() => {
+    if (open) {
+      
+      if (formData.boardroomId) {
+        fetchBoardroomBookings();
+      }
+    }
+  }, [open, formData.boardroomId]);
 
   useEffect(() => {
     if (open) {
+      
       fetchLocations();
       fetchTokenData();
 
@@ -220,6 +243,45 @@ export function BookingDialog({
     }
   };
 
+
+  
+
+  const getBookedTimeslots = () => {
+    if (!selectedDate) return [];
+   const data =  existingBookings
+      .filter((booking) => isSameDay(new Date(booking.date), selectedDate))
+      .map((booking) => ({
+        start: format(new Date(booking.startTime), "HH:mm"),
+        end: format(new Date(booking.endTime), "HH:mm"),
+        title: booking.eventTitle,
+        status: booking.status || "confirmed",
+      }));
+
+      
+     return data
+      
+  };
+
+  const isTimeSlotAvailable = (startTime: string, endTime: string) => {
+    const bookedSlots = getBookedTimeslots();
+
+    
+
+    const start = new Date(`2000-01-01T${startTime}:00`);
+    const end = new Date(`2000-01-01T${endTime}:00`);
+
+    return !bookedSlots.some((slot) => {
+      const slotStart = new Date(`2000-01-01T${slot.start}:00`);
+      const slotEnd = new Date(`2000-01-01T${slot.end}:00`);
+
+      // Allow exact match: one ends when the other starts
+      return start < slotEnd && end > slotStart;
+    });
+  };
+
+
+  
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedDate) {
@@ -243,9 +305,13 @@ export function BookingDialog({
       return;
     }
 
+    console.log(formData.startTime);
+
     setIsLoading(true);
     try {
       const bookingDate = selectedDate;
+      console.log(bookingDate);
+
       const startDateTime = new Date(bookingDate);
       const endDateTime = new Date(bookingDate);
 
@@ -648,6 +714,17 @@ export function BookingDialog({
                     </div>
                   </div>
 
+                  {formData.startTime &&
+                    formData.endTime &&
+                    !isTimeSlotAvailable(
+                      formData.startTime,
+                      formData.endTime
+                    ) && (
+                      <div className="flex items-center text-red-600 text-sm">
+                        <AlertCircle className="h-4 w-4 mr-1" />
+                        This time slot conflicts with an existing booking
+                      </div>
+                    )}
                   <DialogFooter className="mt-6">
                     <Button
                       type="button"
@@ -664,6 +741,10 @@ export function BookingDialog({
                         !formData.startTime ||
                         !formData.endTime ||
                         !formData.boardroomId ||
+                         !isTimeSlotAvailable(
+                      formData.startTime,
+                      formData.endTime
+                    )||
                         (isExistingUser && !userId) ||
                         (isExistingUser && isFetchingUser) ||
                         (tokensRequired > availableTokens &&

@@ -148,7 +148,6 @@ export async function DELETE(
       where: { id: params.id },
     });
 
-
     const { UserID } = await request.json();
 
     if (!booking) {
@@ -161,16 +160,18 @@ export async function DELETE(
         where: { id: params.id },
       });
 
-      if (booking.status === "cancelled" && !UserID) {
-        return;
-      } else {
-        await tx.user.update({
-          where: { id: UserID },
-          data: {
-            tokensAvailable: { increment: booking.tokensUsed },
-            tokensUsed: { decrement: booking.tokensUsed },
-          },
-        });
+      if (booking.status === "cancelled") {
+        if (UserID) {
+          await tx.user.update({
+            where: { id: UserID },
+            data: {
+              tokensAvailable: { increment: booking.tokensUsed },
+              tokensUsed: { decrement: booking.tokensUsed },
+            },
+          });
+        } else {
+          return NextResponse.json({ error: "No User Found" });
+        }
       }
     });
 

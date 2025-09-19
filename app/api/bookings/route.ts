@@ -15,7 +15,7 @@ export async function POST(request: NextRequest) {
       isExistingUser,
       UserID,
       bookerId,
-      phoneNumber
+      phoneNumber,
     } = body;
 
     // Calculate duration in hours
@@ -43,33 +43,29 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Check for conflicts
-    const conflictingBooking = await prisma.booking.findFirst({
-      where: {
-        boardroomId,
-        status: { in: ["confirmed", "pending"] },
-        OR: [
-          {
-            AND: [{ startTime: { lte: start } }, { endTime: { gt: start } }],
-          },
-          {
-            AND: [{ startTime: { lt: end } }, { endTime: { gte: end } }],
-          },
-          {
-            AND: [{ startTime: { gte: start } }, { endTime: { lte: end } }],
-          },
-        ],
-      },
-    });
+    const startISO = new Date(start).toISOString();
+const endISO = new Date(end).toISOString();
 
-    if (conflictingBooking) {
-      return NextResponse.json(
-        { error: "Time slot is already booked" },
-        { status: 400 }
-      );
-    }
-    console.log(isExistingUser);
-    
+    // Check for conflicts
+// const conflictingBooking = await prisma.booking.findFirst({
+//   where: {
+//     boardroomId,
+//     status: { in: ["confirmed", "pending"] },
+//     AND: [
+//       { startTime: { lt: endISO } },
+//       { endTime: { gt: startISO } },
+//     ],
+//   },
+// });
+
+
+//     if (conflictingBooking) {
+//       return NextResponse.json(
+//         { error: "Time slot is already booked" },
+//         { status: 400 }
+//       );
+//     }
+
     // Execute transaction without mixing different return types
     const result = await prisma.$transaction(async (tx) => {
       // Create booking first (without include to keep return type simple)
@@ -84,11 +80,11 @@ export async function POST(request: NextRequest) {
           duration,
           tokensUsed,
           UserID: UserID,
-          isExsisting:isExistingUser ? true : false,
+          isExsisting: isExistingUser ? true : false,
           bookerId: bookerId,
           status: "pending",
           boardroomId,
-          phoneNumber
+          phoneNumber,
         },
       });
 

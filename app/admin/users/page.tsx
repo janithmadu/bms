@@ -1,136 +1,172 @@
-"use client"
+"use client";
 
-import { useEffect, useState } from 'react'
-import { Button } from '@/components/ui/button'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { Badge } from '@/components/ui/badge'
-import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { PageHeader } from '@/components/ui/page-header'
-import { Plus, Search, Filter, Users, Edit, Trash2, MapPin, Mail, Shield } from 'lucide-react'
-import { UserDialog } from '@/components/admin/user-dialog'
-import { toast } from 'sonner'
+import { useEffect, useState } from "react";
+import { Button } from "@/components/ui/button";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { PageHeader } from "@/components/ui/page-header";
+import {
+  Plus,
+  Search,
+  Filter,
+  Users,
+  Edit,
+  Trash2,
+  MapPin,
+  Mail,
+  Shield,
+} from "lucide-react";
+import { UserDialog } from "@/components/admin/user-dialog";
+import { toast } from "sonner";
 
 interface User {
-  id: string
-  name: string
-  email: string
-  role: string
-  status: string
-  createdAt: string
+  id: string;
+  name: string;
+  email: string;
+  role: string;
+  status: string;
+  createdAt: string;
   userLocations: {
     location: {
-      id: string
-      name: string
-    }
-  }[]
+      id: string;
+      name: string;
+    };
+  }[];
 }
 
 export default function UsersPage() {
-  const [users, setUsers] = useState<User[]>([])
-  const [isLoading, setIsLoading] = useState(true)
-  const [searchTerm, setSearchTerm] = useState('')
-  const [selectedRole, setSelectedRole] = useState<string>('all')
-  const [selectedStatus, setSelectedStatus] = useState<string>('all')
-  const [isDialogOpen, setIsDialogOpen] = useState(false)
-  const [editingUser, setEditingUser] = useState<User | null>(null)
+  const [users, setUsers] = useState<User[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [selectedRole, setSelectedRole] = useState<string>("all");
+  const [selectedStatus, setSelectedStatus] = useState<string>("all");
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [editingUser, setEditingUser] = useState<User | null>(null);
 
   const fetchUsers = async () => {
     try {
-      const response = await fetch('/api/admin/users')
+      const response = await fetch("/api/admin/users");
       if (response.ok) {
-        const data = await response.json()
-        setUsers(data)
+        const data = await response.json();
+        setUsers(data);
       }
 
-      if(response.status === 401){
-        const data = await response.json()
-        toast.error(data.error)
+      if (response.status === 401) {
+        const data = await response.json();
+        toast.error(data.error);
       }
-      
     } catch (error) {
-      console.error('Error fetching users:', error)
-      toast.error('Failed to fetch users')
+      console.error("Error fetching users:", error);
+      toast.error("Failed to fetch users");
     } finally {
-      setIsLoading(false)
+      setIsLoading(false);
     }
-  }
+  };
 
   useEffect(() => {
-    fetchUsers()
-  }, [])
+    fetchUsers();
+  }, []);
 
   const handleDelete = async (userId: string) => {
-    if (!confirm('Are you sure you want to delete this user? This action cannot be undone.')) {
-      return
+    if (
+      !confirm(
+        "Are you sure you want to delete this user? This action cannot be undone."
+      )
+    ) {
+      return;
     }
 
     try {
       const response = await fetch(`/api/admin/users/${userId}`, {
-        method: 'DELETE',
-      })
+        method: "DELETE",
+      });
 
       if (response.ok) {
-        toast.success('User deleted successfully')
-        fetchUsers()
+        toast.success("User deleted successfully");
+        fetchUsers();
       } else {
-        const data = await response.json()
-        toast.error(data.error)
+        const data = await response.json();
+        toast.error(data.error);
       }
     } catch (error) {
-      console.error('Error deleting user:', error)
-      toast.error('Failed to delete user')
+      console.error("Error deleting user:", error);
+      toast.error("Failed to delete user");
     }
-  }
+  };
 
   const handleEdit = (user: User) => {
-    setEditingUser(user)
-    setIsDialogOpen(true)
-  }
+    setEditingUser(user);
+    setIsDialogOpen(true);
+  };
 
   const handleCloseDialog = () => {
-    setIsDialogOpen(false)
-    setEditingUser(null)
-  }
+    setIsDialogOpen(false);
+    setEditingUser(null);
+  };
 
   const handleSave = () => {
-    fetchUsers()
-    handleCloseDialog()
-  }
+    fetchUsers();
+    handleCloseDialog();
+  };
 
-  const filteredUsers = users.filter(user => {
-    const matchesSearch = 
+  const filteredUsers = users.filter((user) => {
+    const matchesSearch =
       user.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      user.email.toLowerCase().includes(searchTerm.toLowerCase())
+      user.email.toLowerCase().includes(searchTerm.toLowerCase());
 
-    const matchesRole = selectedRole === 'all' || user.role === selectedRole
-    const matchesStatus = selectedStatus === 'all' || user.status === selectedStatus
+    const matchesRole = selectedRole === "all" || user.role === selectedRole;
+    const matchesStatus =
+      selectedStatus === "all" || user.status === selectedStatus;
 
-    return matchesSearch && matchesRole && matchesStatus
-  })
+    return matchesSearch && matchesRole && matchesStatus;
+  });
 
   const getRoleBadgeColor = (role: string) => {
     switch (role) {
-      case 'admin': return 'bg-red-100 text-red-800'
-      case 'manager': return 'bg-blue-100 text-blue-800'
-      case 'user': return 'bg-green-100 text-green-800'
-      default: return 'bg-gray-100 text-gray-800'
+      case "admin":
+        return "bg-red-100 text-red-800";
+      case "manager":
+        return "bg-blue-100 text-blue-800";
+      case "user":
+        return "bg-green-100 text-green-800";
+      default:
+        return "bg-gray-100 text-gray-800";
     }
-  }
+  };
 
   const getStatusBadgeColor = (status: string) => {
     switch (status) {
-      case 'active': return 'bg-green-100 text-green-800'
-      case 'inactive': return 'bg-gray-100 text-gray-800'
-      default: return 'bg-gray-100 text-gray-800'
+      case "active":
+        return "bg-green-100 text-green-800";
+      case "inactive":
+        return "bg-gray-100 text-gray-800";
+      default:
+        return "bg-gray-100 text-gray-800";
     }
-  }
+  };
 
   if (isLoading) {
     return (
       <div className="space-y-6">
-        <PageHeader title="User Management" description="Manage system users and their permissions" />
+        <PageHeader
+          title="User Management"
+          description="Manage system users and their permissions"
+        />
         <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
           <div className="lg:col-span-1">
             <Card className="animate-pulse">
@@ -161,17 +197,20 @@ export default function UsersPage() {
           </div>
         </div>
       </div>
-    )
+    );
   }
 
   return (
     <>
       <div className="space-y-6">
-        <PageHeader 
-          title="User Management" 
+        <PageHeader
+          title="User Management"
           description="Manage system users and their location access permissions"
         >
-          <Button onClick={() => setIsDialogOpen(true)} className="bg-blue-600 hover:bg-blue-700">
+          <Button
+            onClick={() => setIsDialogOpen(true)}
+            className="bg-blue-600 hover:bg-blue-700"
+          >
             <Plus className="h-4 w-4 mr-2" />
             Add User
           </Button>
@@ -219,7 +258,10 @@ export default function UsersPage() {
 
                 <div className="grid gap-2">
                   <Label>Status</Label>
-                  <Select value={selectedStatus} onValueChange={setSelectedStatus}>
+                  <Select
+                    value={selectedStatus}
+                    onValueChange={setSelectedStatus}
+                  >
                     <SelectTrigger>
                       <SelectValue placeholder="All statuses" />
                     </SelectTrigger>
@@ -240,14 +282,20 @@ export default function UsersPage() {
               <Card>
                 <CardContent className="flex flex-col items-center justify-center py-16">
                   <Users className="h-16 w-16 text-slate-300 mb-4" />
-                  <h3 className="text-xl font-semibold text-slate-600 mb-2">No users found</h3>
+                  <h3 className="text-xl font-semibold text-slate-600 mb-2">
+                    No users found
+                  </h3>
                   <p className="text-slate-500 text-center mb-6">
-                    {searchTerm || selectedRole !== 'all' || selectedStatus !== 'all'
-                      ? 'Try adjusting your filters to see more results.'
-                      : 'No users have been created yet.'
-                    }
+                    {searchTerm ||
+                    selectedRole !== "all" ||
+                    selectedStatus !== "all"
+                      ? "Try adjusting your filters to see more results."
+                      : "No users have been created yet."}
                   </p>
-                  <Button onClick={() => setIsDialogOpen(true)} className="bg-blue-600 hover:bg-blue-700">
+                  <Button
+                    onClick={() => setIsDialogOpen(true)}
+                    className="bg-blue-600 hover:bg-blue-700"
+                  >
                     <Plus className="h-4 w-4 mr-2" />
                     Add First User
                   </Button>
@@ -257,18 +305,22 @@ export default function UsersPage() {
               <div className="space-y-4">
                 <div className="flex items-center justify-between">
                   <p className="text-sm text-slate-600">
-                    Showing {filteredUsers.length} user{filteredUsers.length !== 1 ? 's' : ''}
+                    Showing {filteredUsers.length} user
+                    {filteredUsers.length !== 1 ? "s" : ""}
                   </p>
                 </div>
 
                 {filteredUsers.map((user) => (
-                  <Card key={user.id} className="hover:shadow-md transition-shadow">
+                  <Card
+                    key={user.id}
+                    className="hover:shadow-md transition-shadow"
+                  >
                     <CardHeader>
                       <div className="flex items-start justify-between">
                         <div className="flex-1">
                           <CardTitle className="text-lg flex items-center">
                             <Shield className="h-5 w-5 mr-2 text-blue-500" />
-                            {user.name}
+                            {user.name} - ( {user.id} )
                           </CardTitle>
                           <CardDescription className="flex items-center mt-1">
                             <Mail className="h-4 w-4 mr-1" />
@@ -312,19 +364,26 @@ export default function UsersPage() {
                           {user.userLocations.length > 0 ? (
                             <div className="flex flex-wrap gap-1">
                               {user.userLocations.map((userLocation, index) => (
-                                <Badge key={index} variant="outline" className="text-xs">
+                                <Badge
+                                  key={index}
+                                  variant="outline"
+                                  className="text-xs"
+                                >
                                   {userLocation.location.name}
                                 </Badge>
                               ))}
                             </div>
                           ) : (
-                            <p className="text-xs text-slate-500">No location access assigned</p>
+                            <p className="text-xs text-slate-500">
+                              No location access assigned
+                            </p>
                           )}
                         </div>
 
                         {/* Created Date */}
                         <div className="text-xs text-slate-500 pt-2 border-t border-slate-100">
-                          Created: {new Date(user.createdAt).toLocaleDateString()}
+                          Created:{" "}
+                          {new Date(user.createdAt).toLocaleDateString()}
                         </div>
                       </div>
                     </CardContent>
@@ -343,5 +402,5 @@ export default function UsersPage() {
         onSave={handleSave}
       />
     </>
-  )
+  );
 }
