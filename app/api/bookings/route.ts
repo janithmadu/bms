@@ -44,31 +44,30 @@ export async function POST(request: NextRequest) {
     }
 
     const startISO = new Date(start).toISOString();
-const endISO = new Date(end).toISOString();
+    const endISO = new Date(end).toISOString();
 
     // Check for conflicts
-// const conflictingBooking = await prisma.booking.findFirst({
-//   where: {
-//     boardroomId,
-//     status: { in: ["confirmed", "pending"] },
-//     AND: [
-//       { startTime: { lt: endISO } },
-//       { endTime: { gt: startISO } },
-//     ],
-//   },
-// });
+    // const conflictingBooking = await prisma.booking.findFirst({
+    //   where: {
+    //     boardroomId,
+    //     status: { in: ["confirmed", "pending"] },
+    //     AND: [
+    //       { startTime: { lt: endISO } },
+    //       { endTime: { gt: startISO } },
+    //     ],
+    //   },
+    // });
 
-
-//     if (conflictingBooking) {
-//       return NextResponse.json(
-//         { error: "Time slot is already booked" },
-//         { status: 400 }
-//       );
-//     }
+    //     if (conflictingBooking) {
+    //       return NextResponse.json(
+    //         { error: "Time slot is already booked" },
+    //         { status: 400 }
+    //       );
+    //     }
 
     // Execute transaction without mixing different return types
     const result = await prisma.$transaction(async (tx) => {
-      // Create booking first (without include to keep return type simple)
+      // Create booking first
       const booking = await tx.booking.create({
         data: {
           eventTitle,
@@ -79,12 +78,19 @@ const endISO = new Date(end).toISOString();
           endTime: end,
           duration,
           tokensUsed,
-          UserID: UserID,
+          UserID: UserID ?? "",
           isExsisting: isExistingUser ? true : false,
-          bookerId: bookerId,
+
           status: "pending",
-          boardroomId,
           phoneNumber,
+          booker: {
+            connect: { id: bookerId ?? "7Wcpw" }, // ✅ relation way
+          },
+
+          // ✅ Fix: connect boardroom relation instead of boardroomId
+          boardroom: {
+            connect: { id: boardroomId ?? "" },
+          },
         },
       });
 

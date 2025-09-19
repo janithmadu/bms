@@ -147,7 +147,7 @@ model Booking {
   UserID String @default("") @db.VarChar(5)
   // Relation with User
   bookerId    String  @default("7Wcpw") @db.VarChar(5)
-  booker      User      @relation(fields: [bookerId], references: [id], onDelete: Cascade)
+  booker      User      @relation(fields: [bookerId], references: [id], onDelete: Cascade) 
   isExsisting Boolean @default(false)
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
