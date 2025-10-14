@@ -45,7 +45,6 @@ interface BookingDialogProps {
   onOpenChange: (open: boolean) => void;
   booking?: any;
   onSave: () => void;
-
 }
 
 interface Location {
@@ -102,7 +101,6 @@ export function BookingDialog({
   const [isFetchingUser, setIsFetchingUser] = useState(false);
   const [existingBookings, setExistingBookings] = useState<any[]>([]);
 
-  
   const fetchBoardroomBookings = async () => {
     try {
       const response = await fetch(`/api/boardrooms/${formData.boardroomId}`);
@@ -113,9 +111,8 @@ export function BookingDialog({
     }
   };
 
-    useEffect(() => {
+  useEffect(() => {
     if (open) {
-      
       if (formData.boardroomId) {
         fetchBoardroomBookings();
       }
@@ -124,7 +121,6 @@ export function BookingDialog({
 
   useEffect(() => {
     if (open) {
-      
       fetchLocations();
       fetchTokenData();
 
@@ -243,12 +239,9 @@ export function BookingDialog({
     }
   };
 
-
-  
-
   const getBookedTimeslots = () => {
     if (!selectedDate) return [];
-   const data =  existingBookings
+    const data = existingBookings
       .filter((booking) => isSameDay(new Date(booking.date), selectedDate))
       .map((booking) => ({
         start: format(new Date(booking.startTime), "HH:mm"),
@@ -257,15 +250,11 @@ export function BookingDialog({
         status: booking.status || "confirmed",
       }));
 
-      
-     return data
-      
+    return data;
   };
 
   const isTimeSlotAvailable = (startTime: string, endTime: string) => {
     const bookedSlots = getBookedTimeslots();
-
-    
 
     const start = new Date(`2000-01-01T${startTime}:00`);
     const end = new Date(`2000-01-01T${endTime}:00`);
@@ -278,9 +267,6 @@ export function BookingDialog({
       return start < slotEnd && end > slotStart;
     });
   };
-
-
-  
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -304,8 +290,6 @@ export function BookingDialog({
       toast.error("Insufficient tokens available for this booking");
       return;
     }
-
-    console.log(formData.startTime);
 
     setIsLoading(true);
     try {
@@ -741,15 +725,15 @@ export function BookingDialog({
                         !formData.startTime ||
                         !formData.endTime ||
                         !formData.boardroomId ||
-                         !isTimeSlotAvailable(
-                      formData.startTime,
-                      formData.endTime
-                    )||
                         (isExistingUser && !userId) ||
                         (isExistingUser && isFetchingUser) ||
                         (tokensRequired > availableTokens &&
                           !booking &&
                           isExistingUser) ||
+                        !isTimeSlotAvailable(
+                          formData.startTime,
+                          formData.endTime
+                        ) ||
                         tokensRequired === 0
                       }
                       className="bg-blue-600 hover:bg-blue-700"

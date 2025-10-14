@@ -3,6 +3,9 @@ import { prisma } from '@/lib/prisma'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 
+// Define the initial count value for token renewal
+const INITIAL_COUNT = 1000; // Replace 1000 with your desired initial count
+
 
 export async function POST(request: NextRequest) {
   const session = await getServerSession(authOptions)
@@ -10,24 +13,25 @@ export async function POST(request: NextRequest) {
     // This endpoint should be called by a cron job monthly
     // You can secure it with an API key or webhook secret
 
-     if (!session || session.user.role !== "admin") {
-          return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-        }
+    if (!session || session.user.role !== "admin") {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
 
-        let  tokenRecord;
-    
-    // const tokenRecord = await prisma.token.update({
-    //   where: { id: 'singleton' },
-    //   data: {
-    //     availableCount: { set: prisma.raw('initial_count') },
-    //     tokensUsedThisMonth: 0,
-    //     lastRenewalDate: new Date()
-    //   }
-    // })
+    const users = await prisma.user.findMany()
 
-    return NextResponse.json({ 
+
+    users.forEach(async (user) => {
+      await prisma.user.update({
+        where: { id: user.id },
+        data: { tokenLimit: user.tokenLimit, tokensUsed: 0, tokensAvailable: user.tokenLimit }
+      })
+    }
+    )
+
+
+
+    return NextResponse.json({
       message: 'Tokens renewed successfully',
-      tokenRecord 
     })
   } catch (error) {
     console.error('Error renewing tokens:', error)

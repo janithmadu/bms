@@ -94,7 +94,7 @@ export default function TokensPage() {
 
     setIsUpdating(true)
     try {
-      const response = await fetch('/api/users/tokens', {
+      const response = await fetch('/api/tokens', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 
@@ -125,7 +125,7 @@ export default function TokensPage() {
 
     setIsUpdating(true)
     try {
-      const response = await fetch('/api/users/tokens', {
+      const response = await fetch('/api/tokens/renew', {
         method: 'POST'
       })
 

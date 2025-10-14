@@ -62,6 +62,10 @@ export function BookingModal({
   const [existingBookings, setExistingBookings] = useState<any[]>([]);
   const [tokensRequired, setTokensRequired] = useState(0);
 
+
+  
+
+
   useEffect(() => {
     if (open) {
       fetchTokenData(userId);

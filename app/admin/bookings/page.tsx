@@ -35,7 +35,7 @@ import {
   Phone,
   Download,
 } from "lucide-react";
-import { format, isToday, isTomorrow, isYesterday } from "date-fns";
+import { format, isToday, isTomorrow, isYesterday, parse } from "date-fns";
 import { toast } from "sonner";
 import { BookingDialog } from "@/components/admin/booking-dialog";
 import { useSession } from "next-auth/react";
@@ -94,6 +94,27 @@ const downloadCSV = (data: any[], headers: string[], filename: string) => {
   document.body.removeChild(link);
 };
 
+// Generate time options from 8:00 AM to 11:59 PM in 30-minute increments
+const generateTimeOptions = () => {
+  const times = [];
+  let hour = 8;
+  let minute = 0;
+
+  while (hour < 24) {
+    const timeStr = format(new Date(2025, 0, 1, hour, minute), "hh:mm a");
+    times.push(timeStr);
+    minute += 30;
+    if (minute >= 60) {
+      hour += 1;
+      minute = 0;
+    }
+    if (hour === 24 && minute > 0) break;
+  }
+  return times;
+};
+
+const timeOptions = generateTimeOptions();
+
 export default function BookingsPage() {
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [locations, setLocations] = useState<Location[]>([]);
@@ -105,8 +126,12 @@ export default function BookingsPage() {
   const [selectedLocation, setSelectedLocation] = useState<string>("all");
   const [selectedStatus, setSelectedStatus] = useState<string>("all");
   const [selectedType, setSelectedType] = useState<string>("all");
+  const [selectedStartTime, setSelectedStartTime] = useState<string>("all");
+  const [selectedEndTime, setSelectedEndTime] = useState<string>("all");
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingBooking, setEditingBooking] = useState<Booking | null>(null);
+
+  const { data: session } = useSession();
 
   const fetchBookings = async () => {
     try {
@@ -121,15 +146,12 @@ export default function BookingsPage() {
     }
   };
 
-  const { data: session } = useSession();
-
   const fetchLocations = async () => {
     try {
       const response = await fetch(
         `/api/locations?userId=${session?.user.id}&role=${session?.user.role}`
       );
       const data = await response.json();
-
       setLocations(Array.isArray(data) ? data : []);
     } catch (error) {
       console.error("Error fetching locations:", error);
@@ -276,10 +298,25 @@ export default function BookingsPage() {
       booking.isExsisting ? "Internal" : "External"
     ]);
 
-    // Generate filename with current date
     const dateStr = format(new Date(), "yyyy-MM-dd");
     downloadCSV(csvData, headers, `bookings_export_${dateStr}.csv`);
     toast.success("CSV exported successfully");
+  };
+
+  // Time filter logic
+  const isBookingInTimeRange = (booking: Booking, startTime: string, endTime: string) => {
+    if (startTime === "all" && endTime === "all") return true;
+
+    const bookingStart = parse(format(new Date(booking.startTime), "HH:mm"), "HH:mm", new Date());
+    const bookingEnd = parse(format(new Date(booking.endTime), "HH:mm"), "HH:mm", new Date());
+
+    const start = startTime !== "all" ? parse(startTime, "hh:mm a", new Date()) : new Date(2025, 0, 1, 8, 0);
+    const end = endTime !== "all" ? parse(endTime, "hh:mm a", new Date()) : new Date(2025, 0, 1, 23, 59);
+
+    return (
+      bookingStart.getTime() >= start.getTime() &&
+      bookingEnd.getTime() <= end.getTime()
+    );
   };
 
   const filteredBookings = bookings.filter((booking) => {
@@ -292,27 +329,28 @@ export default function BookingsPage() {
     const matchesLocation =
       selectedLocation === "all" ||
       booking.boardroom.location.id === selectedLocation;
-    const Type =
-      selectedType === "internel"
-        ? true
-        : selectedType === "external"
-        ? false
-        : "all";
-    const matchesType = selectedType === "all" || booking.isExsisting === Type;
+    
+    const matchesType =
+      selectedType === "all" ||
+      booking.isExsisting === (selectedType === "internel" ? true : false);
 
     const matchesStatus =
       selectedStatus === "all" || booking.status === selectedStatus;
+      
     const matchesDate =
       !selectedDate ||
       format(new Date(booking.date), "yyyy-MM-dd") ===
         format(selectedDate, "yyyy-MM-dd");
+
+    const matchesTimeRange = isBookingInTimeRange(booking, selectedStartTime, selectedEndTime);
 
     return (
       matchesSearch &&
       matchesLocation &&
       matchesStatus &&
       matchesDate &&
-      matchesType
+      matchesType &&
+      matchesTimeRange
     );
   });
 
@@ -475,7 +513,47 @@ export default function BookingsPage() {
                     <SelectContent>
                       <SelectItem value="all">All Types</SelectItem>
                       <SelectItem value="external">External</SelectItem>
-                      <SelectItem value="internel">Internel</SelectItem>
+                      <SelectItem value="internel">Internal</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="grid gap-2">
+                  <Label>Start Time</Label>
+                  <Select
+                    value={selectedStartTime}
+                    onValueChange={setSelectedStartTime}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="All start times" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Start Times</SelectItem>
+                      {timeOptions.map((time) => (
+                        <SelectItem key={time} value={time}>
+                          {time}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="grid gap-2">
+                  <Label>End Time</Label>
+                  <Select
+                    value={selectedEndTime}
+                    onValueChange={setSelectedEndTime}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="All end times" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All End Times</SelectItem>
+                      {timeOptions.map((time) => (
+                        <SelectItem key={time} value={time}>
+                          {time}
+                        </SelectItem>
+                      ))}
                     </SelectContent>
                   </Select>
                 </div>
@@ -496,7 +574,9 @@ export default function BookingsPage() {
                     {selectedDate ||
                     searchTerm ||
                     selectedLocation !== "all" ||
-                    selectedStatus !== "all"
+                    selectedStatus !== "all" ||
+                    selectedStartTime !== "all" ||
+                    selectedEndTime !== "all"
                       ? "Try adjusting your filters to see more results."
                       : "No bookings have been made yet."}
                   </p>
@@ -660,7 +740,6 @@ export default function BookingsPage() {
                             )}
                           </div>
                         </div>
-                        {/* New section for IDs */}
                         <div className="flex items-center justify-between mt-2">
                           <div className="text-xs text-slate-400">
                             Booker ID: {booking.bookerId}
