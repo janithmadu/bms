@@ -34,6 +34,7 @@ import {
   Plus,
   Phone,
   Download,
+  Loader2,
 } from "lucide-react";
 import { format, isToday, isTomorrow, isYesterday, parse } from "date-fns";
 import { toast } from "sonner";
@@ -78,9 +79,11 @@ interface Location {
 const downloadCSV = (data: any[], headers: string[], filename: string) => {
   const csvContent = [
     headers.join(","),
-    ...data.map(row =>
-      row.map((field: any) => `"${String(field).replace(/"/g, '""')}"`).join(",")
-    )
+    ...data.map((row) =>
+      row
+        .map((field: any) => `"${String(field).replace(/"/g, '""')}"`)
+        .join(",")
+    ),
   ].join("\n");
 
   const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
@@ -130,6 +133,9 @@ export default function BookingsPage() {
   const [selectedEndTime, setSelectedEndTime] = useState<string>("all");
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingBooking, setEditingBooking] = useState<Booking | null>(null);
+  const [loadingBookings, setLoadingBookings] = useState<{
+    [key: string]: boolean;
+  }>({});
 
   const { data: session } = useSession();
 
@@ -174,6 +180,7 @@ export default function BookingsPage() {
       return;
     }
 
+    setLoadingBookings((prev) => ({ ...prev, [bookingId]: true }));
     try {
       const response = await fetch(`/api/admin/bookings/${bookingId}`, {
         method: "DELETE",
@@ -189,6 +196,8 @@ export default function BookingsPage() {
     } catch (error) {
       console.error("Error cancelling booking:", error);
       toast.error("Failed to cancel booking");
+    } finally {
+      setLoadingBookings((prev) => ({ ...prev, [bookingId]: false }));
     }
   };
 
@@ -218,6 +227,7 @@ export default function BookingsPage() {
       return;
     }
 
+    setLoadingBookings((prev) => ({ ...prev, [bookingId]: true }));
     try {
       const response = await fetch(`/api/admin/bookings/${bookingId}/status`, {
         method: "PUT",
@@ -237,6 +247,8 @@ export default function BookingsPage() {
     } catch (error) {
       console.error(`Error ${statusText}ing booking:`, error);
       toast.error(`Failed to ${statusText} booking`);
+    } finally {
+      setLoadingBookings((prev) => ({ ...prev, [bookingId]: false }));
     }
   };
 
@@ -273,7 +285,7 @@ export default function BookingsPage() {
       "Location Name",
       "Location Address",
       "Created At",
-      "Booking Type"
+      "Booking Type",
     ];
 
     const csvData = filteredBookings.map((booking) => [
@@ -295,7 +307,7 @@ export default function BookingsPage() {
       booking.boardroom.location.name,
       booking.boardroom.location.address,
       format(new Date(booking.createdAt), "yyyy-MM-dd HH:mm"),
-      booking.isExsisting ? "Internal" : "External"
+      booking.isExsisting ? "Internal" : "External",
     ]);
 
     const dateStr = format(new Date(), "yyyy-MM-dd");
@@ -304,14 +316,32 @@ export default function BookingsPage() {
   };
 
   // Time filter logic
-  const isBookingInTimeRange = (booking: Booking, startTime: string, endTime: string) => {
+  const isBookingInTimeRange = (
+    booking: Booking,
+    startTime: string,
+    endTime: string
+  ) => {
     if (startTime === "all" && endTime === "all") return true;
 
-    const bookingStart = parse(format(new Date(booking.startTime), "HH:mm"), "HH:mm", new Date());
-    const bookingEnd = parse(format(new Date(booking.endTime), "HH:mm"), "HH:mm", new Date());
+    const bookingStart = parse(
+      format(new Date(booking.startTime), "HH:mm"),
+      "HH:mm",
+      new Date()
+    );
+    const bookingEnd = parse(
+      format(new Date(booking.endTime), "HH:mm"),
+      "HH:mm",
+      new Date()
+    );
 
-    const start = startTime !== "all" ? parse(startTime, "hh:mm a", new Date()) : new Date(2025, 0, 1, 8, 0);
-    const end = endTime !== "all" ? parse(endTime, "hh:mm a", new Date()) : new Date(2025, 0, 1, 23, 59);
+    const start =
+      startTime !== "all"
+        ? parse(startTime, "hh:mm a", new Date())
+        : new Date(2025, 0, 1, 8, 0);
+    const end =
+      endTime !== "all"
+        ? parse(endTime, "hh:mm a", new Date())
+        : new Date(2025, 0, 1, 23, 59);
 
     return (
       bookingStart.getTime() >= start.getTime() &&
@@ -329,20 +359,24 @@ export default function BookingsPage() {
     const matchesLocation =
       selectedLocation === "all" ||
       booking.boardroom.location.id === selectedLocation;
-    
+
     const matchesType =
       selectedType === "all" ||
       booking.isExsisting === (selectedType === "internel" ? true : false);
 
     const matchesStatus =
       selectedStatus === "all" || booking.status === selectedStatus;
-      
+
     const matchesDate =
       !selectedDate ||
       format(new Date(booking.date), "yyyy-MM-dd") ===
         format(selectedDate, "yyyy-MM-dd");
 
-    const matchesTimeRange = isBookingInTimeRange(booking, selectedStartTime, selectedEndTime);
+    const matchesTimeRange = isBookingInTimeRange(
+      booking,
+      selectedStartTime,
+      selectedEndTime
+    );
 
     return (
       matchesSearch &&
@@ -603,8 +637,13 @@ export default function BookingsPage() {
                 {filteredBookings.map((booking) => (
                   <Card
                     key={booking.id}
-                    className="hover:shadow-md transition-shadow"
+                    className="hover:shadow-md transition-shadow relative"
                   >
+                    {loadingBookings[booking.id] && (
+                      <div className="absolute inset-0 bg-white/50 flex items-center justify-center z-10">
+                        <Loader2 className="h-8 w-8 animate-spin text-blue-500" />
+                      </div>
+                    )}
                     <CardHeader>
                       <div className="flex items-start justify-between">
                         <div>
@@ -644,6 +683,11 @@ export default function BookingsPage() {
                                   )
                                 }
                                 className="bg-green-50 hover:bg-green-100 text-green-700 border-green-200"
+                                disabled={
+                                  loadingBookings[booking.id] || // Disable if loading
+                                  (session?.user.role !== "admin" && // If not admin
+                                    booking.bookerId !== session?.user.id) // and user ID doesn't match
+                                }
                               >
                                 Approve
                               </Button>
@@ -658,6 +702,11 @@ export default function BookingsPage() {
                                   )
                                 }
                                 className="bg-red-50 hover:bg-red-100 text-red-700 border-red-200"
+                                disabled={
+                                  loadingBookings[booking.id] || // Disable if loading
+                                  (session?.user.role !== "admin" && // If not admin
+                                    booking.bookerId !== session?.user.id) // and user ID doesn't match
+                                }
                               >
                                 Reject
                               </Button>
@@ -676,6 +725,7 @@ export default function BookingsPage() {
                                 )
                               }
                               className="bg-red-50 hover:bg-red-100 text-red-700 border-red-200"
+                              disabled={loadingBookings[booking.id]}
                             >
                               Cancel
                             </Button>
@@ -686,12 +736,18 @@ export default function BookingsPage() {
                               variant="ghost"
                               size="sm"
                               onClick={() => handleEdit(booking)}
+                              disabled={loadingBookings[booking.id]}
                             >
                               <Edit className="h-4 w-4" />
                             </Button>
+
                             <Button
                               variant="ghost"
                               size="sm"
+                              disabled={
+                                booking.status !== "cancelled" ||
+                                loadingBookings[booking.id]
+                              }
                               onClick={() =>
                                 handleDelete(booking.id, booking.UserID)
                               }

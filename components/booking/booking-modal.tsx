@@ -62,10 +62,6 @@ export function BookingModal({
   const [existingBookings, setExistingBookings] = useState<any[]>([]);
   const [tokensRequired, setTokensRequired] = useState(0);
 
-
-  
-
-
   useEffect(() => {
     if (open) {
       fetchTokenData(userId);
@@ -127,20 +123,20 @@ export function BookingModal({
       }));
   };
 
-const isTimeSlotAvailable = (startTime: string, endTime: string) => {
-  const bookedSlots = getBookedTimeslots();
+  const isTimeSlotAvailable = (startTime: string, endTime: string) => {
+    const bookedSlots = getBookedTimeslots();
 
-  const start = new Date(`2000-01-01T${startTime}:00`);
-  const end = new Date(`2000-01-01T${endTime}:00`);
+    const start = new Date(`2000-01-01T${startTime}:00`);
+    const end = new Date(`2000-01-01T${endTime}:00`);
 
-  return !bookedSlots.some((slot) => {
-    const slotStart = new Date(`2000-01-01T${slot.start}:00`);
-    const slotEnd = new Date(`2000-01-01T${slot.end}:00`);
+    return !bookedSlots.some((slot) => {
+      const slotStart = new Date(`2000-01-01T${slot.start}:00`);
+      const slotEnd = new Date(`2000-01-01T${slot.end}:00`);
 
-    // Allow exact match: one ends when the other starts
-    return start < slotEnd && end > slotStart;
-  });
-};
+      // Allow exact match: one ends when the other starts
+      return start < slotEnd && end > slotStart;
+    });
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

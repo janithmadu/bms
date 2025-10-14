@@ -1,165 +1,197 @@
-"use client"
+"use client";
 
-import { useEffect, useState } from 'react'
-import { Button } from '@/components/ui/button'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
-import { PageHeader } from '@/components/ui/page-header'
-import { Coins, Plus, RotateCcw, TrendingUp, Calendar, User, Users } from 'lucide-react'
-import { toast } from 'sonner'
-import { format } from 'date-fns'
-import { useSession } from 'next-auth/react'
+import { useEffect, useState } from "react";
+import { Button } from "@/components/ui/button";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { PageHeader } from "@/components/ui/page-header";
+import {
+  Coins,
+  Plus,
+  RotateCcw,
+  TrendingUp,
+  Calendar,
+  User,
+  Users,
+} from "lucide-react";
+import { toast } from "sonner";
+import { format } from "date-fns";
+import { useSession } from "next-auth/react";
 
 interface UserTokenData {
-  id: string
-  name: string | null
-  email: string
-  role: string
-  tokensAvailable: number
-  tokensUsed: number
-  tokenLimit: number
-  lastTokenReset: string
+  id: string;
+  name: string | null;
+  email: string;
+  role: string;
+  tokensAvailable: number;
+  tokensUsed: number;
+  tokenLimit: number;
+  lastTokenReset: string;
 }
 
 export default function TokensPage() {
-  const [users, setUsers] = useState<UserTokenData[]>([])
-  const [selectedUserId, setSelectedUserId] = useState<string>('')
-  const [isLoading, setIsLoading] = useState(true)
-  const [additionalTokens, setAdditionalTokens] = useState('')
-  const [newTokenLimit, setNewTokenLimit] = useState('')
-  const [isUpdating, setIsUpdating] = useState(false)
+  const [users, setUsers] = useState<UserTokenData[]>([]);
+  const [selectedUserId, setSelectedUserId] = useState<string>("");
+  const [isLoading, setIsLoading] = useState(true);
+  const [additionalTokens, setAdditionalTokens] = useState("");
+  const [newTokenLimit, setNewTokenLimit] = useState("");
+  const [isUpdating, setIsUpdating] = useState(false);
   const { data: session, status } = useSession();
-  const isAdmin = session?.user?.role === "admin"
+  const isAdmin = session?.user?.role === "admin";
 
   const fetchUsers = async () => {
     try {
-      const response = await fetch('/api/tokens')
-      const data = await response.json()
-      setUsers(data)
+      const response = await fetch("/api/tokens");
+      const data = await response.json();
+      setUsers(data);
       if (data.length > 0 && !selectedUserId) {
-        setSelectedUserId(data[0].id)
+        setSelectedUserId(data[0].id);
       }
     } catch (error) {
-      console.error('Error fetching users:', error)
-      toast.error('Failed to fetch user data')
+      console.error("Error fetching users:", error);
+      toast.error("Failed to fetch user data");
     } finally {
-      setIsLoading(false)
+      setIsLoading(false);
     }
-  }
+  };
 
   useEffect(() => {
-    fetchUsers()
-  }, [])
+    fetchUsers();
+  }, []);
 
   const handleAddTokens = async (e: React.FormEvent) => {
-    e.preventDefault()
-    if (!selectedUserId || !additionalTokens || isNaN(Number(additionalTokens)) || Number(additionalTokens) <= 0) {
-      toast.error('Please select a user and enter a valid positive number')
-      return
+    e.preventDefault();
+    if (
+      !selectedUserId ||
+      !additionalTokens ||
+      isNaN(Number(additionalTokens)) ||
+      Number(additionalTokens) <= 0
+    ) {
+      toast.error("Please select a user and enter a valid positive number");
+      return;
     }
 
-    setIsUpdating(true)
+    setIsUpdating(true);
     try {
-      const response = await fetch('/api/tokens', {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
-          userId: selectedUserId, 
-          additionalTokens: Number(additionalTokens) 
-        })
-      })
+      const response = await fetch("/api/tokens", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          userId: selectedUserId,
+          additionalTokens: Number(additionalTokens),
+        }),
+      });
 
       if (response.ok) {
-        toast.success(`Added ${additionalTokens} tokens to user successfully`)
-        setAdditionalTokens('')
-        fetchUsers()
+        toast.success(`Added ${additionalTokens} tokens to user successfully`);
+        setAdditionalTokens("");
+        fetchUsers();
       } else {
-        throw new Error('Failed to add tokens')
+        throw new Error("Failed to add tokens");
       }
     } catch (error) {
-      console.error('Error adding tokens:', error)
-      toast.error('Failed to add tokens')
+      console.error("Error adding tokens:", error);
+      toast.error("Failed to add tokens");
     } finally {
-      setIsUpdating(false)
+      setIsUpdating(false);
     }
-  }
+  };
 
   const handleUpdateTokenLimit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    if (!selectedUserId || !newTokenLimit || isNaN(Number(newTokenLimit)) || Number(newTokenLimit) <= 0) {
-      toast.error('Please select a user and enter a valid positive number')
-      return
+    e.preventDefault();
+    if (
+      !selectedUserId ||
+      !newTokenLimit ||
+      isNaN(Number(newTokenLimit)) ||
+      Number(newTokenLimit) <= 0
+    ) {
+      toast.error("Please select a user and enter a valid positive number");
+      return;
     }
 
-    setIsUpdating(true)
+    setIsUpdating(true);
     try {
-      const response = await fetch('/api/tokens', {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
-          userId: selectedUserId, 
-          newTokenLimit: Number(newTokenLimit) 
-        })
-      })
+      const response = await fetch("/api/tokens", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          userId: selectedUserId,
+          newTokenLimit: Number(newTokenLimit),
+        }),
+      });
 
       if (response.ok) {
-        toast.success('Token limit updated successfully')
-        setNewTokenLimit('')
-        fetchUsers()
+        toast.success("Token limit updated successfully");
+        setNewTokenLimit("");
+        fetchUsers();
       } else {
-        throw new Error('Failed to update token limit')
+        throw new Error("Failed to update token limit");
       }
     } catch (error) {
-      console.error('Error updating token limit:', error)
-      toast.error('Failed to update token limit')
+      console.error("Error updating token limit:", error);
+      toast.error("Failed to update token limit");
     } finally {
-      setIsUpdating(false)
+      setIsUpdating(false);
     }
-  }
+  };
 
   const handleRenewalTest = async () => {
-    if (!confirm('This will reset all user tokens. Continue?')) {
-      return
+    if (!confirm("This will reset all user tokens. Continue?")) {
+      return;
     }
 
-    setIsUpdating(true)
+    setIsUpdating(true);
     try {
-      const response = await fetch('/api/tokens/renew', {
-        method: 'POST'
-      })
+      const response = await fetch("/api/tokens/renew", {
+        method: "POST",
+      });
 
       if (response.ok) {
-        toast.success('All user tokens reset successfully')
-        fetchUsers()
+        toast.success("All user tokens reset successfully");
+        fetchUsers();
       } else {
-        throw new Error('Failed to reset tokens')
+        throw new Error("Failed to reset tokens");
       }
     } catch (error) {
-      console.error('Error resetting tokens:', error)
-      toast.error('Failed to reset tokens')
+      console.error("Error resetting tokens:", error);
+      toast.error("Failed to reset tokens");
     } finally {
-      setIsUpdating(false)
+      setIsUpdating(false);
     }
-  }
+  };
 
   if (!isAdmin) {
     return (
       <div className="space-y-6">
-        <PageHeader title="Unauthorized" description="You do not have permission to access this page." />
+        <PageHeader
+          title="Unauthorized"
+          description="You do not have permission to access this page."
+        />
         <Card>
           <CardContent className="flex items-center justify-center py-16">
-            <p className="text-slate-500">Only administrators can manage tokens.</p>
+            <p className="text-slate-500">
+              Only administrators can manage tokens.
+            </p>
           </CardContent>
         </Card>
       </div>
-    )
+    );
   }
 
   if (isLoading) {
     return (
       <div className="space-y-6">
-        <PageHeader title="User Token Management" description="Manage user booking tokens" />
+        <PageHeader
+          title="User Token Management"
+          description="Manage user booking tokens"
+        />
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           {[1, 2, 3].map((i) => (
             <Card key={i} className="animate-pulse">
@@ -173,18 +205,20 @@ export default function TokensPage() {
           ))}
         </div>
       </div>
-    )
+    );
   }
 
-  const selectedUser = users.find(user => user.id === selectedUserId) || users[0]
-  const usagePercentage = selectedUser?.tokenLimit > 0 
-    ? Math.round((selectedUser.tokensUsed / selectedUser.tokenLimit) * 100)
-    : 0
+  const selectedUser =
+    users.find((user) => user.id === selectedUserId) || users[0];
+  const usagePercentage =
+    selectedUser?.tokenLimit > 0
+      ? Math.round((selectedUser.tokensUsed / selectedUser.tokenLimit) * 100)
+      : 0;
 
   return (
     <div className="space-y-6">
-      <PageHeader 
-        title="User Token Management" 
+      <PageHeader
+        title="User Token Management"
         description="Manage booking tokens for individual users"
       />
 
@@ -192,7 +226,9 @@ export default function TokensPage() {
       <Card>
         <CardHeader>
           <CardTitle>Select User</CardTitle>
-          <CardDescription>Choose a user to manage their tokens</CardDescription>
+          <CardDescription>
+            Choose a user to manage their tokens
+          </CardDescription>
         </CardHeader>
         <CardContent>
           <div className="grid gap-2">
@@ -258,7 +294,9 @@ export default function TokensPage() {
                 <div className="text-3xl font-bold text-slate-900 mb-1">
                   {selectedUser.tokensUsed}
                 </div>
-                <CardDescription>{usagePercentage}% of monthly limit</CardDescription>
+                <CardDescription>
+                  {usagePercentage}% of monthly limit
+                </CardDescription>
               </CardContent>
             </Card>
 
@@ -271,9 +309,11 @@ export default function TokensPage() {
               </CardHeader>
               <CardContent>
                 <div className="text-lg font-semibold text-slate-900 mb-1">
-                  {format(new Date(selectedUser.lastTokenReset), 'MMM dd')}
+                  {format(new Date(selectedUser.lastTokenReset), "MMM dd")}
                 </div>
-                <CardDescription>{format(new Date(selectedUser.lastTokenReset), 'yyyy')}</CardDescription>
+                <CardDescription>
+                  {format(new Date(selectedUser.lastTokenReset), "yyyy")}
+                </CardDescription>
               </CardContent>
             </Card>
           </div>
@@ -282,7 +322,9 @@ export default function TokensPage() {
           <Card>
             <CardHeader>
               <CardTitle>Monthly Usage for {selectedUser.name}</CardTitle>
-              <CardDescription>Track token consumption this month</CardDescription>
+              <CardDescription>
+                Track token consumption this month
+              </CardDescription>
             </CardHeader>
             <CardContent>
               <div className="space-y-2">
@@ -291,7 +333,7 @@ export default function TokensPage() {
                   <span>Limit: {selectedUser.tokenLimit}</span>
                 </div>
                 <div className="w-full bg-slate-200 rounded-full h-2">
-                  <div 
+                  <div
                     className="bg-gradient-to-r from-blue-500 to-blue-600 h-2 rounded-full transition-all duration-300"
                     style={{ width: `${Math.min(usagePercentage, 100)}%` }}
                   />
@@ -329,7 +371,7 @@ export default function TokensPage() {
                 />
               </div>
               <Button type="submit" disabled={isUpdating} className="w-full">
-                {isUpdating ? 'Updating...' : 'Update Monthly Limit'}
+                {isUpdating ? "Updating..." : "Update Monthly Limit"}
               </Button>
             </form>
           </CardContent>
@@ -358,7 +400,7 @@ export default function TokensPage() {
               </div>
               <Button type="submit" disabled={isUpdating} className="w-full">
                 <Plus className="h-4 w-4 mr-2" />
-                {isUpdating ? 'Adding...' : 'Add Tokens'}
+                {isUpdating ? "Adding..." : "Add Tokens"}
               </Button>
             </form>
           </CardContent>
@@ -370,12 +412,13 @@ export default function TokensPage() {
         <CardHeader>
           <CardTitle>Token Renewal</CardTitle>
           <CardDescription>
-            Manually reset all user tokens. This is normally handled automatically.
+            Manually reset all user tokens. This is normally handled
+            automatically.
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <Button 
-            variant="outline" 
+          <Button
+            variant="outline"
             onClick={handleRenewalTest}
             disabled={isUpdating}
           >
@@ -384,8 +427,12 @@ export default function TokensPage() {
           </Button>
           <div className="mt-4 p-4 bg-slate-50 rounded-lg">
             <p className="text-sm text-slate-600">
-              <strong>Automatic Renewal:</strong> User tokens are automatically reset monthly. 
-              Set up a cron job to call <code className="bg-slate-200 px-1 rounded">/api/users/tokens</code> on the 1st of each month.
+              <strong>Automatic Renewal:</strong> User tokens are automatically
+              reset monthly. Set up a cron job to call{" "}
+              <code className="bg-slate-200 px-1 rounded">
+                /api/users/tokens
+              </code>{" "}
+              on the 1st of each month.
             </p>
           </div>
         </CardContent>
@@ -417,23 +464,28 @@ export default function TokensPage() {
               </thead>
               <tbody>
                 {users.map((user) => {
-                  const userUsage = user.tokenLimit > 0 
-                    ? Math.round((user.tokensUsed / user.tokenLimit) * 100)
-                    : 0
-                  
+                  const userUsage =
+                    user.tokenLimit > 0
+                      ? Math.round((user.tokensUsed / user.tokenLimit) * 100)
+                      : 0;
+
                   return (
                     <tr key={user.id} className="border-b">
                       <td className="py-2">
                         <div className="font-medium">{user.name}</div>
-                        <div className="text-xs text-slate-500">{user.email}</div>
+                        <div className="text-xs text-slate-500">
+                          {user.email}
+                        </div>
                       </td>
                       <td className="py-2 capitalize">{user.role}</td>
-                      <td className="text-right py-2 font-medium">{user.tokensAvailable}</td>
+                      <td className="text-right py-2 font-medium">
+                        {user.tokensAvailable}
+                      </td>
                       <td className="text-right py-2">{user.tokensUsed}</td>
                       <td className="text-right py-2">{user.tokenLimit}</td>
                       <td className="text-right py-2">{userUsage}%</td>
                     </tr>
-                  )
+                  );
                 })}
               </tbody>
             </table>
@@ -441,5 +493,5 @@ export default function TokensPage() {
         </CardContent>
       </Card>
     </div>
-  )
+  );
 }

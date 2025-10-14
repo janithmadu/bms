@@ -94,12 +94,15 @@ export function BookingDialog({
   const [userTokenData, setUserTokenData] = useState<UserTokenData | null>(
     null
   );
+  const { data: session, status } = useSession();
   const [isLoading, setIsLoading] = useState(false);
   const [tokensRequired, setTokensRequired] = useState(0);
   const [isExistingUser, setIsExistingUser] = useState(false);
   const [userId, setUserId] = useState("");
   const [isFetchingUser, setIsFetchingUser] = useState(false);
   const [existingBookings, setExistingBookings] = useState<any[]>([]);
+
+  console.log(tokenData);
 
   const fetchBoardroomBookings = async () => {
     try {
@@ -147,36 +150,40 @@ export function BookingDialog({
           boardroomId: "",
           locationId: "",
           phoneNumber: "",
-          isExsisting: 0,
+          isExsisting: session?.user.role === "user" ? 1 : 0,
         });
         setSelectedDate(new Date());
       }
 
-      // Reset user-related states
-      setIsExistingUser(false);
-      setUserId("");
+      // Set isExistingUser based on user role
+      setIsExistingUser(session?.user.role === "user");
+      setUserId(session?.user.id || "");
       setUserTokenData(null);
     }
-  }, [open, booking]);
+  }, [open, booking, session?.user.role, session?.user.id]);
+
+  useEffect(() => {
+    if (session?.user.role === "user") {
+      setIsExistingUser(true);
+      setUserId(session.user.id);
+    }
+  }, [session?.user.role, session?.user.id]);
 
   useEffect(() => {
     calculateTokensRequired();
   }, [formData.startTime, formData.endTime]);
 
   useEffect(() => {
-    // Fetch user token data when userId changes and isExistingUser is true
     if (isExistingUser && userId) {
       const delayDebounceFn = setTimeout(() => {
         fetchUserTokenData(userId);
-      }, 500); // Wait 500ms after user stops typing
+      }, 500);
 
       return () => clearTimeout(delayDebounceFn);
     } else {
       setUserTokenData(null);
     }
-  }, [userId, isExistingUser]);
-
-  const { data: session, status } = useSession();
+  }, [userId, isExistingUser, open]);
 
   const fetchLocations = async () => {
     try {
@@ -209,6 +216,7 @@ export function BookingDialog({
       const response = await fetch(`/api/public/users/${id}`);
       if (response.ok) {
         const data = await response.json();
+
         setUserTokenData(data);
       } else {
         setUserTokenData(null);
@@ -263,7 +271,6 @@ export function BookingDialog({
       const slotStart = new Date(`2000-01-01T${slot.start}:00`);
       const slotEnd = new Date(`2000-01-01T${slot.end}:00`);
 
-      // Allow exact match: one ends when the other starts
       return start < slotEnd && end > slotStart;
     });
   };
@@ -275,9 +282,8 @@ export function BookingDialog({
       return;
     }
 
-    // Check token availability based on whether it's an existing user or not
     if (isExistingUser && userTokenData) {
-      if (tokensRequired > userTokenData.tokensAvailable && isExistingUser) {
+      if (tokensRequired > userTokenData.tokensAvailable) {
         toast.error("Insufficient tokens available for this user");
         return;
       }
@@ -294,7 +300,6 @@ export function BookingDialog({
     setIsLoading(true);
     try {
       const bookingDate = selectedDate;
-      console.log(bookingDate);
 
       const startDateTime = new Date(bookingDate);
       const endDateTime = new Date(bookingDate);
@@ -310,19 +315,18 @@ export function BookingDialog({
         : "/api/bookings";
       const method = booking ? "PUT" : "POST";
 
-      // Include userId if it's an existing user
       const requestBody: any = {
         ...formData,
         date: bookingDate.toISOString(),
         startTime: startDateTime.toISOString(),
         endTime: endDateTime.toISOString(),
         boardroomId: formData.boardroomId,
-        isExistingUser,
+        isExistingUser: session?.user.role === "user" ? true : isExistingUser,
         UserID: userId,
         bookerId: session?.user.id,
       };
 
-      if (isExistingUser && userId) {
+      if ((isExistingUser || session?.user.role === "user") && userId) {
         requestBody.userId = userId;
       }
 
@@ -373,11 +377,15 @@ export function BookingDialog({
     (room) => room.id === formData.boardroomId
   );
 
-  // Determine which token data to use
-  const displayTokenData = isExistingUser ? userTokenData : tokenData;
+  const displayTokenData = isExistingUser ? userTokenData : session?.user;
+
+  console.log(userTokenData);
+
   const availableTokens = isExistingUser
     ? userTokenData?.tokensAvailable || 0
     : tokenData?.availableCount || 0;
+
+  console.log();
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -394,9 +402,7 @@ export function BookingDialog({
         </DialogHeader>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-6">
-          {/* Left Column - Calendar and Room Selection */}
           <div className="space-y-6">
-            {/* Calendar */}
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center">
@@ -415,7 +421,6 @@ export function BookingDialog({
               </CardContent>
             </Card>
 
-            {/* Location and Room Selection */}
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center">
@@ -482,7 +487,6 @@ export function BookingDialog({
               </CardContent>
             </Card>
 
-            {/* Token Information */}
             {displayTokenData && (
               <Card className={!isExistingUser ? "hidden" : "inline"}>
                 <CardHeader>
@@ -543,7 +547,6 @@ export function BookingDialog({
             )}
           </div>
 
-          {/* Right Column - Booking Form */}
           <div className="space-y-6">
             <Card>
               <CardHeader>
@@ -551,37 +554,45 @@ export function BookingDialog({
               </CardHeader>
               <CardContent>
                 <form onSubmit={handleSubmit} className="space-y-4">
-                  {/* Existing User Checkbox and User ID Field */}
                   <div className="space-y-3 p-3 border rounded-lg">
-                    {!booking && (
+                    {!booking && session?.user.role !== "user" && (
                       <div className="flex items-center space-x-2">
-                        <>
-                          <Label
-                            htmlFor="existingUser"
-                            className="text-sm font-medium leading-none"
-                          >
-                            Existing User?
-                          </Label>
-                          <Checkbox
-                            id="existingUser"
-                            checked={isExistingUser}
-                            onCheckedChange={(checked) =>
-                              setIsExistingUser(checked === true)
-                            }
-                          />
-                        </>
+                        <Label
+                          htmlFor="existingUser"
+                          className="text-sm font-medium leading-none"
+                        >
+                          Existing User?
+                        </Label>
+                        <Checkbox
+                          id="existingUser"
+                          checked={isExistingUser}
+                          onCheckedChange={(checked) =>
+                            setIsExistingUser(checked === true)
+                          }
+                        />
                       </div>
                     )}
 
-                    {isExistingUser && (
+                    {(isExistingUser || session?.user.role === "user") && (
                       <div className="grid gap-2 mt-2">
                         <Label htmlFor="userId">User ID</Label>
                         <Input
                           id="userId"
-                          value={userId}
+                          value={
+                            session?.user.role === "user"
+                              ? session.user.id
+                              : userId
+                          }
+                          defaultValue={
+                            session?.user.role === "user"
+                              ? session.user.id
+                              : userId
+                          }
                           onChange={(e) => setUserId(e.target.value)}
                           placeholder="Enter user ID"
-                          disabled={isFetchingUser}
+                          disabled={
+                            isFetchingUser || session?.user.role === "user"
+                          }
                         />
                         {isFetchingUser && (
                           <p className="text-xs text-slate-500">
@@ -636,7 +647,7 @@ export function BookingDialog({
                   </div>
 
                   <div className="grid gap-2">
-                    <Label htmlFor="bookerEmail">Phone Number *</Label>
+                    <Label htmlFor="phoneNumber">Phone Number *</Label>
                     <Input
                       id="phoneNumber"
                       type="text"
