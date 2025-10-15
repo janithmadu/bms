@@ -686,7 +686,7 @@ export default function BookingsPage() {
                                 disabled={
                                   loadingBookings[booking.id] || // Disable if loading
                                   (session?.user.role !== "admin" && // If not admin
-                                    booking.bookerId !== session?.user.id) // and user ID doesn't match
+                                    booking.UserID !== session?.user.id) // and user ID doesn't match
                                 }
                               >
                                 Approve
@@ -705,7 +705,7 @@ export default function BookingsPage() {
                                 disabled={
                                   loadingBookings[booking.id] || // Disable if loading
                                   (session?.user.role !== "admin" && // If not admin
-                                    booking.bookerId !== session?.user.id) // and user ID doesn't match
+                                    booking.UserID !== session?.user.id) // and user ID doesn't match
                                 }
                               >
                                 Reject
