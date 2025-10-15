@@ -125,6 +125,7 @@ export async function POST(request: NextRequest) {
         name,
         email,
         password: hashedPassword,
+        tokensAvailable:40,
         role,
         status,
         userLocations: {

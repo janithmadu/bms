@@ -6,7 +6,7 @@ import { authOptions } from '@/lib/auth'
 export async function GET() {
   try {
     const session = await getServerSession(authOptions)
-    
+
     if (!session) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
@@ -20,8 +20,7 @@ export async function GET() {
         }
       },
       orderBy: [
-        { date: 'desc' },
-        { startTime: 'desc' }
+        { createdAt: 'desc' }
       ]
     })
 
@@ -33,7 +32,7 @@ export async function GET() {
       { status: 500 }
     )
   }
-  finally{
+  finally {
     await prisma.$disconnect()
   }
 }

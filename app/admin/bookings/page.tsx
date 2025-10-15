@@ -144,7 +144,19 @@ export default function BookingsPage() {
       const response = await fetch("/api/admin/bookings");
       if (response.ok) {
         const data = await response.json();
-        setBookings(data);
+        const allowedLocationIds =
+          session?.user?.userLocations?.map((loc) => loc.locationId) || [];
+
+        // Filter bookings based on user's locations
+        const filteredBookings = data.filter((booking: any) =>
+          allowedLocationIds.includes(booking.boardroom.locationId)
+        );
+
+        if (session?.user.role === "admin") {
+          setBookings(data);
+        } else {
+          setBookings(filteredBookings);
+        }
       }
     } catch (error) {
       console.error("Error fetching bookings:", error);
@@ -169,7 +181,7 @@ export default function BookingsPage() {
 
   useEffect(() => {
     Promise.all([fetchBookings(), fetchLocations()]);
-  }, [session?.user.id]);
+  }, [session?.user.id, session?.user.role]);
 
   const handleDelete = async (bookingId: string, UserID: string) => {
     if (
@@ -685,7 +697,8 @@ export default function BookingsPage() {
                                 className="bg-green-50 hover:bg-green-100 text-green-700 border-green-200"
                                 disabled={
                                   loadingBookings[booking.id] || // Disable if loading
-                                  (session?.user.role !== "admin" && // If not admin
+                                  (session?.user.role !== "admin" &&
+                                    session?.user.role !== "manager" && // If not admin or manager
                                     booking.UserID !== session?.user.id) // and user ID doesn't match
                                 }
                               >
@@ -704,7 +717,8 @@ export default function BookingsPage() {
                                 className="bg-red-50 hover:bg-red-100 text-red-700 border-red-200"
                                 disabled={
                                   loadingBookings[booking.id] || // Disable if loading
-                                  (session?.user.role !== "admin" && // If not admin
+                                  (session?.user.role !== "admin" &&
+                                    session?.user.role !== "manager" && // If not admin or manager
                                     booking.UserID !== session?.user.id) // and user ID doesn't match
                                 }
                               >

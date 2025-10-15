@@ -79,7 +79,6 @@ export function BookingModal({
     try {
       const response = await fetch(`/api/public/users/${id}`);
       const data = await response.json();
-
       setTokenData(data);
     } catch (error) {
       console.error("Error fetching token data:", error);
@@ -239,6 +238,47 @@ export function BookingModal({
           </DialogDescription>
         </DialogHeader>
 
+        {tokenData && (
+          <div className="sticky top-0 z-10 bg-white">
+            <Card className="border border-gray-200 rounded-lg shadow-sm">
+              <CardHeader className="py-2 px-4">
+                <CardTitle className="flex items-center text-sm font-semibold">
+                  <Coins className="h-4 w-4 mr-2 text-amber-500" />
+                  Token Usage
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="py-2 px-4">
+                <div className="grid grid-cols-1 gap-2 text-sm">
+                  <div className="flex justify-between">
+                    <span className="text-gray-600">Available:</span>
+                    <span className="font-medium text-green-600">
+                      {tokenData.tokensAvailable} tokens
+                    </span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-600">Required:</span>
+                    <span
+                      className={`font-medium ${
+                        tokensRequired > tokenData.tokensAvailable
+                          ? "text-red-600"
+                          : "text-blue-600"
+                      }`}
+                    >
+                      {tokensRequired} token{tokensRequired !== 1 ? "s" : ""}
+                    </span>
+                  </div>
+                  {tokensRequired > tokenData.tokensAvailable && (
+                    <div className="col-span-2 flex items-center text-red-600 text-xs mt-1">
+                      <AlertCircle className="h-3 w-3 mr-1" />
+                      Insufficient tokens
+                    </div>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        )}
+
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mt-6">
           {/* Left Column */}
           <div className="space-y-6">
@@ -295,46 +335,6 @@ export function BookingModal({
                 </div>
               </CardContent>
             </Card>
-
-            {tokenData && (
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center">
-                    <Coins className="h-5 w-5 mr-2 text-amber-500" />
-                    Token Usage
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-2">
-                    <div className="flex justify-between">
-                      <span className="text-sm text-slate-600">Available:</span>
-                      <span className="font-medium text-green-600">
-                        {tokenData.tokensAvailable} tokens
-                      </span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-sm text-slate-600">Required:</span>
-                      <span
-                        className={`font-medium ${
-                          tokensRequired > tokenData.tokensAvailable
-                            ? "text-red-600"
-                            : "text-blue-600"
-                        }`}
-                      >
-                        {tokensRequired} token
-                        {tokensRequired !== 1 ? "s" : ""}
-                      </span>
-                    </div>
-                    {tokensRequired > tokenData.tokensAvailable && (
-                      <div className="flex items-center text-red-600 text-sm mt-2">
-                        <AlertCircle className="h-4 w-4 mr-1" />
-                        Insufficient tokens available
-                      </div>
-                    )}
-                  </div>
-                </CardContent>
-              </Card>
-            )}
           </div>
 
           {/* Right Column */}

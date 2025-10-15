@@ -7,11 +7,23 @@ declare module 'next-auth' {
       email: string
       name?: string
       role: string
+      userLocations: {
+        id: string;
+        userId: string;
+        locationId: string;
+        createdAt: Date;
+      }[];
     }
   }
 
   interface User {
     role: string
+    userLocations: {
+      id: string;
+      userId: string;
+      locationId: string;
+      createdAt: Date;
+    }[];
   }
 }
 

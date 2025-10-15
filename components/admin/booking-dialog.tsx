@@ -23,13 +23,11 @@ import { Calendar } from "@/components/ui/calendar";
 import {
   Card,
   CardContent,
-  CardDescription,
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
 import {
   CalendarIcon,
-  Clock,
   Users,
   MapPin,
   Coins,
@@ -155,7 +153,6 @@ export function BookingDialog({
         setSelectedDate(new Date());
       }
 
-      // Set isExistingUser based on user role
       setIsExistingUser(session?.user.role === "user");
       setUserId(session?.user.id || "");
       setUserTokenData(null);
@@ -216,7 +213,6 @@ export function BookingDialog({
       const response = await fetch(`/api/public/users/${id}`);
       if (response.ok) {
         const data = await response.json();
-
         setUserTokenData(data);
       } else {
         setUserTokenData(null);
@@ -401,6 +397,65 @@ export function BookingDialog({
           </DialogDescription>
         </DialogHeader>
 
+        {displayTokenData && (
+          <div className="sticky top-0 z-10 bg-white">
+            <Card className={`border border-gray-200 rounded-lg shadow-sm ${isExistingUser ? "inline" : "hidden"}`}>
+              <CardHeader className="py-2 px-4">
+                <CardTitle className="flex items-center text-sm font-semibold">
+                  <Coins className="h-4 w-4 mr-2 text-amber-500" />
+                  {isExistingUser ? "User Token Usage" : "Token Usage"}
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="py-2 px-4">
+                <div className="grid grid-cols-2 gap-2 text-sm">
+                  <div className="flex justify-between">
+                    <span className="text-gray-600">Available:</span>
+                    <span className="font-medium text-green-600">
+                      {availableTokens} tokens
+                    </span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-600">Required:</span>
+                    <span
+                      className={`font-medium ${
+                        tokensRequired > availableTokens
+                          ? "text-red-600"
+                          : "text-blue-600"
+                      }`}
+                    >
+                      {tokensRequired} token{tokensRequired !== 1 ? "s" : ""}
+                    </span>
+                  </div>
+                  {isExistingUser && (
+                    <>
+                      <div className="flex justify-between">
+                        <span className="text-gray-600">Total Limit:</span>
+                        <span className="font-medium">
+                          {userTokenData?.tokenLimit} tokens
+                        </span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-gray-600">Used:</span>
+                        <span className="font-medium">
+                          {userTokenData?.tokensUsed} tokens
+                        </span>
+                      </div>
+                    </>
+                  )}
+                  {tokensRequired > availableTokens &&
+                    !booking &&
+                    isExistingUser && (
+                      <div className="col-span-2 flex items-center text-red-600 text-xs mt-1">
+                        <AlertCircle className="h-3 w-3 mr-1" />
+                        Insufficient tokens
+                      </div>
+                    )}
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        )}
+
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-6">
           <div className="space-y-6">
             <Card>
@@ -486,65 +541,6 @@ export function BookingDialog({
                 )}
               </CardContent>
             </Card>
-
-            {displayTokenData && (
-              <Card className={!isExistingUser ? "hidden" : "inline"}>
-                <CardHeader>
-                  <CardTitle className="flex items-center">
-                    <Coins className="h-5 w-5 mr-2 text-amber-500" />
-                    {isExistingUser ? "User Token Usage" : "Token Usage"}
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-2">
-                    <div className="flex justify-between">
-                      <span className="text-sm text-slate-600">Available:</span>
-                      <span className="font-medium text-green-600">
-                        {availableTokens} tokens
-                      </span>
-                    </div>
-                    {isExistingUser && (
-                      <>
-                        <div className="flex justify-between">
-                          <span className="text-sm text-slate-600">
-                            Total Limit:
-                          </span>
-                          <span className="font-medium">
-                            {userTokenData?.tokenLimit} tokens
-                          </span>
-                        </div>
-                        <div className="flex justify-between">
-                          <span className="text-sm text-slate-600">Used:</span>
-                          <span className="font-medium">
-                            {userTokenData?.tokensUsed} tokens
-                          </span>
-                        </div>
-                      </>
-                    )}
-                    <div className="flex justify-between">
-                      <span className="text-sm text-slate-600">Required:</span>
-                      <span
-                        className={`font-medium ${
-                          tokensRequired > availableTokens
-                            ? "text-red-600"
-                            : "text-blue-600"
-                        }`}
-                      >
-                        {tokensRequired} token{tokensRequired !== 1 ? "s" : ""}
-                      </span>
-                    </div>
-                    {tokensRequired > availableTokens &&
-                      !booking &&
-                      isExistingUser && (
-                        <div className="flex items-center text-red-600 text-sm mt-2">
-                          <AlertCircle className="h-4 w-4 mr-1" />
-                          Insufficient tokens available
-                        </div>
-                      )}
-                  </div>
-                </CardContent>
-              </Card>
-            )}
           </div>
 
           <div className="space-y-6">
@@ -702,7 +698,7 @@ export function BookingDialog({
                             .map((time) => (
                               <SelectItem key={time} value={time}>
                                 {time}
-                              </SelectItem>
+                            </SelectItem>
                             ))}
                         </SelectContent>
                       </Select>

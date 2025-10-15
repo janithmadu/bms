@@ -20,39 +20,33 @@ export const authOptions: NextAuthOptions = {
         }
 
         const user = await prisma.user.findUnique({
-          where: {
-            email: credentials.email,
-          },
+          where: { email: credentials.email },
           select: {
             id: true,
             email: true,
             name: true,
             password: true,
             role: true,
-            // Don't select emailVerified to avoid the error
+            userLocations: true, // ✅ include userLocations
           },
         });
 
-        console.log(user);
-
-        if (!user) {
-          return null;
-        }
+        if (!user) return null;
 
         const isPasswordValid = await bcrypt.compare(
           credentials.password,
           user.password || ""
         );
 
-        if (!isPasswordValid) {
-          return null;
-        }
+        if (!isPasswordValid) return null;
 
+        // ✅ return user with locations
         return {
           id: user.id,
           email: user.email,
           name: user.name,
           role: user.role,
+          userLocations: user.userLocations,
         };
       },
     }),
@@ -67,6 +61,7 @@ export const authOptions: NextAuthOptions = {
     async jwt({ token, user }) {
       if (user) {
         token.role = user.role;
+        token.userLocations = user.userLocations; // ✅ save locations in token
       }
       return token;
     },
@@ -74,6 +69,7 @@ export const authOptions: NextAuthOptions = {
       if (token) {
         session.user.id = token.sub!;
         session.user.role = token.role as string;
+        session.user.userLocations = token.userLocations as any[]; // ✅ expose in session
       }
       return session;
     },
