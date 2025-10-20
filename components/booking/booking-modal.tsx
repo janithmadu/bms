@@ -1,29 +1,19 @@
+
 "use client";
 
-import { useState, useEffect } from "react";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
-import { Calendar } from "@/components/ui/calendar";
-import { Badge } from "@/components/ui/badge";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
-import { Users, MapPin, Coins, AlertCircle, CheckCircle } from "lucide-react";
-import { format, addDays, isSameDay, startOfDay } from "date-fns";
+import { useEffect, useMemo, useState } from "react";
+import { format, addDays, isSameDay, startOfDay, getHours, getMinutes } from "date-fns";
 import { toast } from "sonner";
-import { Checkbox } from "../ui/checkbox";
+
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
+import { Calendar, CheckCircle, Clock, MapPin } from "lucide-react";
+
+import BoardroomDetails from "./BoardroomDetails";
+import DateSelector from "./DateSelector";
+import TimeSlotSelector from "./TimeSlotSelector";
+import BookingForm from "./BookingForm";
+import BookingSummary from "./BookingSummary";
+import { StepPill } from "./StepPill";
 
 interface BookingModalProps {
   open: boolean;
@@ -38,555 +28,314 @@ interface TokenData {
   initialCount: number;
 }
 
-export function BookingModal({
-  open,
-  onOpenChange,
-  boardroom,
-  location,
-}: BookingModalProps) {
-  const [selectedDate, setSelectedDate] = useState<Date | undefined>(
-    new Date()
-  );
+export function BookingModal({ open, onOpenChange, boardroom, location }: BookingModalProps) {
+  // Steps: 1 = details + calendar, 2 = timeslot selection, 3 = details & confirm
+  const [step, setStep] = useState<number>(1);
+
+  const [selectedDate, setSelectedDate] = useState<Date | undefined>(new Date());
+  const [existingBookings, setExistingBookings] = useState<any[]>([]);
+  const [selectedStart, setSelectedStart] = useState<string | null>(null); // "HH:mm"
+  const [selectedDuration, setSelectedDuration] = useState<number | null>(60); // minutes
+  const [tokensRequired, setTokensRequired] = useState<number>(0);
+
+  const [isExistingUser, setIsExistingUser] = useState(false);
+  const [userId, setUserId] = useState("");
+  const [tokenData, setTokenData] = useState<TokenData | null>(null);
+
   const [formData, setFormData] = useState({
     eventTitle: "",
     bookerName: "",
     bookerEmail: "",
-    startTime: "",
-    endTime: "",
     phoneNumber: "",
   });
-  const [isExistingUser, setIsExistingUser] = useState(false);
-  const [userId, setUserId] = useState("");
-  const [isLoading, setIsLoading] = useState(false);
-  const [tokenData, setTokenData] = useState<TokenData | null>(null);
-  const [existingBookings, setExistingBookings] = useState<any[]>([]);
-  const [tokensRequired, setTokensRequired] = useState(0);
 
+  const [isLoading, setIsLoading] = useState(false);
+
+  // Reset when modal opens/closes
   useEffect(() => {
     if (open) {
+      setStep(1);
+      setSelectedDate(new Date());
+      setSelectedStart(null);
+      setSelectedDuration(60);
+      fetchBoardroomBookings();
       fetchTokenData(userId);
-      if (boardroom?.id) {
-        fetchBoardroomBookings();
-      }
     }
-  }, [open, boardroom?.id, userId]);
+  }, [open, boardroom?.id]);
 
+  // Token calculation only for existing users with token data
   useEffect(() => {
-    calculateTokensRequired();
-  }, [formData.startTime, formData.endTime]);
+    if (isExistingUser && tokenData && selectedStart && selectedDuration) {
+      const hours = selectedDuration / 60;
+      setTokensRequired(Math.ceil(hours));
+    } else {
+      setTokensRequired(0);
+    }
+  }, [selectedStart, selectedDuration, isExistingUser, tokenData]);
 
+  // --- API fetches ---
   const fetchTokenData = async (id: string) => {
     try {
-      const response = await fetch(`/api/public/users/${id}`);
-      const data = await response.json();
+      if (!id) {
+        return;
+      }
+      const res = await fetch(`/api/public/users/${id}`);
+      if (!res.ok) return;
+      const data = await res.json();
       setTokenData(data);
-    } catch (error) {
-      console.error("Error fetching token data:", error);
+    } catch (err) {
+      console.error("fetchTokenData error:", err);
     }
   };
 
   const fetchBoardroomBookings = async () => {
+    if (!boardroom?.id) return;
     try {
-      const response = await fetch(`/api/boardrooms/${boardroom.id}`);
-      const data = await response.json();
-      setExistingBookings(data.bookings || []);
-    } catch (error) {
-      console.error("Error fetching bookings:", error);
-    }
-  };
-
-  const calculateTokensRequired = () => {
-    if (formData.startTime && formData.endTime) {
-      const start = new Date(`2000-01-01T${formData.startTime}`);
-      const end = new Date(`2000-01-01T${formData.endTime}`);
-      if (end > start) {
-        const hours = (end.getTime() - start.getTime()) / (1000 * 60 * 60);
-        setTokensRequired(Math.ceil(hours));
-      } else {
-        setTokensRequired(0);
+      const res = await fetch(`/api/boardrooms/${boardroom.id}`);
+      if (!res.ok) {
+        console.error("Failed to fetch bookings");
+        return;
       }
-    } else {
-      setTokensRequired(0);
+      const data = await res.json();
+      setExistingBookings(data.bookings || []);
+    } catch (err) {
+      console.error("fetchBoardroomBookings error:", err);
     }
   };
 
-  const getBookedTimeslots = () => {
+  // --- Utilities to generate and check timeslots ---
+  const generateTimeSlots = (intervalMinutes = 30) => {
+    const slots: string[] = [];
+    const now = new Date();
+    const isToday = selectedDate && isSameDay(selectedDate, now);
+    const currentHour = getHours(now);
+    const currentMinute = getMinutes(now);
+    // If today, start from the next 30-minute slot after current time
+    const startHour = isToday ? currentHour + (currentMinute >= 30 ? 1 : 0) : 0;
+
+    for (let hour = startHour; hour < 24; hour++) {
+      const base = hour * 60;
+      // If today and starting from current hour, adjust starting minute
+      const startMinute = isToday && hour === startHour && currentMinute > 0 && currentMinute < 30 ? 30 : 0;
+      for (let m = startMinute; m < 60; m += intervalMinutes) {
+        const hh = Math.floor((base + m) / 60);
+        const mm = (base + m) % 60;
+        slots.push(`${String(hh).padStart(2, "0")}:${String(mm).padStart(2, "0")}`);
+      }
+    }
+    return slots;
+  };
+
+  const parseTimeToDate = (date: Date, timeHHMM: string) => {
+    const [hh, mm] = timeHHMM.split(":").map((x) => parseInt(x, 10));
+    const d = new Date(date);
+    d.setHours(hh, mm, 0, 0);
+    return d;
+  };
+
+  // Booked intervals for selectedDate => array of { start: Date, end: Date }
+  const bookedIntervalsForSelectedDate = useMemo(() => {
     if (!selectedDate) return [];
     return existingBookings
-      .filter((booking) => isSameDay(new Date(booking.date), selectedDate))
-      .map((booking) => ({
-        start: format(new Date(booking.startTime), "HH:mm"),
-        end: format(new Date(booking.endTime), "HH:mm"),
-        title: booking.eventTitle,
-        status: booking.status || "confirmed",
-      }));
+      .filter((b) => {
+        const bookingDate = new Date(b.date || b.startTime);
+        return isSameDay(bookingDate, selectedDate);
+      })
+      .map((b) => {
+        const s = new Date(b.startTime);
+        const e = new Date(b.endTime);
+        return { start: s, end: e };
+      });
+  }, [existingBookings, selectedDate]);
+
+  // Check if a proposed interval overlaps bookings
+  const intervalOverlaps = (start: Date, end: Date) => {
+    return bookedIntervalsForSelectedDate.some((bi) => start < bi.end && end > bi.start);
   };
 
-  const isTimeSlotAvailable = (startTime: string, endTime: string) => {
-    const bookedSlots = getBookedTimeslots();
-
-    const start = new Date(`2000-01-01T${startTime}:00`);
-    const end = new Date(`2000-01-01T${endTime}:00`);
-
-    return !bookedSlots.some((slot) => {
-      const slotStart = new Date(`2000-01-01T${slot.start}:00`);
-      const slotEnd = new Date(`2000-01-01T${slot.end}:00`);
-
-      // Allow exact match: one ends when the other starts
-      return start < slotEnd && end > slotStart;
-    });
+  // Is a start slot available for a given duration
+  const isStartAvailableForDuration = (startHHMM: string, durationMinutes: number) => {
+    if (!selectedDate) return false;
+    const start = parseTimeToDate(selectedDate, startHHMM);
+    const end = new Date(start.getTime() + durationMinutes * 60 * 1000);
+    // Don't allow end beyond next day 00:00
+    const lastPossible = addDays(startOfDay(selectedDate), 1);
+    if (end > lastPossible) return false;
+    return !intervalOverlaps(start, end);
   };
 
+  // Available start slots (not conflicting even for minimal duration 30m)
+  const availableStartSlots = useMemo(() => {
+    if (!selectedDate) return [];
+    const all = generateTimeSlots(30);
+    return all.filter((slot) => isStartAvailableForDuration(slot, 30));
+  }, [selectedDate, existingBookings]);
+
+  // Duration choices from 30 min to 24 hours in 30 min increments
+  const allowedDurationsForStart = (startHHMM: string) => {
+    const choices = Array.from({ length: 48 }, (_, i) => (i + 1) * 30); // 30 min to 1440 min (24 hours)
+    return choices.filter((dur) => isStartAvailableForDuration(startHHMM, dur));
+  };
+
+  // --- Submission ---
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedDate) {
-      toast.error("Please select a date");
+      toast.error("Please choose a date");
       return;
     }
-    if (!isTimeSlotAvailable(formData.startTime, formData.endTime)) {
-      toast.error("This time slot conflicts with an existing booking");
-      return;
-    }
-    if (tokenData && tokensRequired > tokenData.tokensAvailable) {
-      toast.error("Insufficient tokens available for this booking");
+    if (!selectedStart || !selectedDuration) {
+      toast.error("Please select a start time and duration");
       return;
     }
     if (isExistingUser && !userId.trim()) {
-      toast.error("User ID is required for existing users");
+      toast.error("User ID required for existing users");
+      return;
+    }
+    if (isExistingUser && tokenData && tokensRequired > tokenData.tokensAvailable) {
+      toast.error("Insufficient tokens for this booking");
       return;
     }
 
     setIsLoading(true);
     try {
-      const bookingDate = selectedDate;
-      const startDateTime = new Date(bookingDate);
-      const endDateTime = new Date(bookingDate);
+      const start = parseTimeToDate(selectedDate, selectedStart);
+      const end = new Date(start.getTime() + selectedDuration * 60 * 1000);
 
-      const [startHours, startMinutes] = formData.startTime.split(":");
-      const [endHours, endMinutes] = formData.endTime.split(":");
+      // Double-check no overlap before sending
+      if (intervalOverlaps(start, end)) {
+        toast.error("Selected slot conflicts with an existing booking");
+        setIsLoading(false);
+        return;
+      }
 
-      startDateTime.setHours(parseInt(startHours), parseInt(startMinutes));
-      endDateTime.setHours(parseInt(endHours), parseInt(endMinutes));
-
-      const response = await fetch("/api/bookings", {
+      const resp = await fetch("/api/bookings", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           ...formData,
-          date: bookingDate.toISOString(),
-          startTime: startDateTime.toISOString(),
-          endTime: endDateTime.toISOString(),
+          date: selectedDate.toISOString(),
+          startTime: start.toISOString(),
+          endTime: end.toISOString(),
           boardroomId: boardroom.id,
           isExistingUser,
           UserID: isExistingUser ? userId : null,
         }),
       });
 
-      if (response.ok) {
-        toast.success("Booking confirmed successfully!");
-        onOpenChange(false);
-        setFormData({
-          eventTitle: "",
-          bookerName: "",
-          bookerEmail: "",
-          startTime: "",
-          endTime: "",
-          phoneNumber: "",
-        });
+      if (resp.ok) {
+        toast.success("Booking confirmed!");
+        // Reset & close
+        setFormData({ eventTitle: "", bookerName: "", bookerEmail: "", phoneNumber: "" });
         setUserId("");
         setIsExistingUser(false);
-        setSelectedDate(new Date());
+        setSelectedStart(null);
+        setSelectedDuration(60);
+        setStep(1);
+        onOpenChange(false);
       } else {
-        const error = await response.json();
-        toast.error(error.error || "Failed to create booking");
+        const err = await resp.json();
+        toast.error(err?.error || "Failed to create booking");
       }
-    } catch (error) {
-      console.error("Error creating booking:", error);
+    } catch (err) {
+      console.error("create booking error", err);
       toast.error("Failed to create booking");
     } finally {
       setIsLoading(false);
     }
   };
 
-  const generateTimeSlots = () => {
-    const slots = [];
-    for (let hour = 8; hour < 18; hour++) {
-      slots.push(`${hour.toString().padStart(2, "0")}:00`);
-      slots.push(`${hour.toString().padStart(2, "0")}:30`);
-    }
-    return slots;
-  };
-
+  // --- Helpers for UI ---
   const canBookDate = (date: Date) => {
     const today = startOfDay(new Date());
     const maxDate = addDays(today, 30);
     return date >= today && date <= maxDate;
   };
 
-  const bookedSlots: any = getBookedTimeslots();
+  const formattedSelectedDate = selectedDate ? format(selectedDate, "MMMM d, yyyy") : "";
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-6xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="sm:max-w-5xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle className="text-2xl font-bold">
-            Book {boardroom?.name}
-          </DialogTitle>
+          <DialogTitle className="text-2xl font-bold">Book {boardroom?.name}</DialogTitle>
           <DialogDescription className="flex items-center text-slate-600">
             <MapPin className="h-4 w-4 mr-1" />
             {location?.name} - {location?.address}
           </DialogDescription>
         </DialogHeader>
 
-        {tokenData && (
-          <div className="sticky top-0 z-10 bg-white">
-            <Card className="border border-gray-200 rounded-lg shadow-sm">
-              <CardHeader className="py-2 px-4">
-                <CardTitle className="flex items-center text-sm font-semibold">
-                  <Coins className="h-4 w-4 mr-2 text-amber-500" />
-                  Token Usage
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="py-2 px-4">
-                <div className="grid grid-cols-1 gap-2 text-sm">
-                  <div className="flex justify-between">
-                    <span className="text-gray-600">Available:</span>
-                    <span className="font-medium text-green-600">
-                      {tokenData.tokensAvailable} tokens
-                    </span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-gray-600">Required:</span>
-                    <span
-                      className={`font-medium ${
-                        tokensRequired > tokenData.tokensAvailable
-                          ? "text-red-600"
-                          : "text-blue-600"
-                      }`}
-                    >
-                      {tokensRequired} token{tokensRequired !== 1 ? "s" : ""}
-                    </span>
-                  </div>
-                  {tokensRequired > tokenData.tokensAvailable && (
-                    <div className="col-span-2 flex items-center text-red-600 text-xs mt-1">
-                      <AlertCircle className="h-3 w-3 mr-1" />
-                      Insufficient tokens
-                    </div>
-                  )}
-                </div>
-              </CardContent>
-            </Card>
+        {/* Progress / Stepper */}
+        <div className="mt-4 px-4">
+          <div className="flex items-center gap-4">
+            <StepPill idx={1} title="Details & Date" active={step === 1} done={step > 1} icon={Calendar} />
+            <div className="h-[2px] flex-1 bg-slate-200" />
+            <StepPill idx={2} title="Choose Time" active={step === 2} done={step > 2} icon={Clock} />
+            <div className="h-[2px] flex-1 bg-slate-200" />
+            <StepPill idx={3} title="Confirm" active={step === 3} done={step > 3} icon={CheckCircle} />
           </div>
-        )}
+        </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mt-6">
-          {/* Left Column */}
-          <div className="space-y-6">
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center">
-                  <Users className="h-5 w-5 mr-2 text-blue-500" />
-                  Room Details
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                {boardroom?.imageUrl && (
-                  <img
-                    src={boardroom.imageUrl}
-                    alt={boardroom.name}
-                    className="w-full h-32 object-cover rounded-lg mb-4"
-                  />
-                )}
-                <div className="space-y-2">
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm text-slate-600">Capacity:</span>
-                    <span className="font-medium">
-                      {boardroom?.capacity} people
-                    </span>
-                  </div>
-                  {boardroom?.dimensions && (
-                    <div className="flex items-center justify-between">
-                      <span className="text-sm text-slate-600">Size:</span>
-                      <span className="font-medium">
-                        {boardroom.dimensions}
-                      </span>
-                    </div>
-                  )}
-                  {boardroom?.facilities?.length > 0 && (
-                    <div className="mt-3">
-                      <span className="text-sm text-slate-600 block mb-2">
-                        Facilities:
-                      </span>
-                      <div className="flex flex-wrap gap-1">
-                        {boardroom.facilities.map(
-                          (facility: string, index: number) => (
-                            <Badge
-                              key={index}
-                              variant="secondary"
-                              className="text-xs"
-                            >
-                              {facility}
-                            </Badge>
-                          )
-                        )}
-                      </div>
-                    </div>
-                  )}
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-
-          {/* Right Column */}
-          <div className="space-y-6">
-            {selectedDate && bookedSlots.length > 0 && (
-              <Card>
-                <CardHeader>
-                  <CardTitle className="text-lg">
-                    Existing Bookings - {format(selectedDate, "MMMM d, yyyy")}
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-2">
-                    {bookedSlots.map((slot: any, index: number) => (
-                      <div
-                        key={index}
-                        className={`flex items-center justify-between p-2 rounded-lg ${
-                          slot.status === "confirmed"
-                            ? "bg-red-50"
-                            : "bg-yellow-50"
-                        }`}
-                      >
-                        <span className="text-sm font-medium">
-                          {slot.title}
-                        </span>
-                        <div className="flex items-center space-x-2">
-                          <span className="text-sm text-slate-600">
-                            {slot.start} - {slot.end}
-                          </span>
-                          <Badge
-                            variant={
-                              slot.status === "confirmed"
-                                ? "destructive"
-                                : "secondary"
-                            }
-                            className="text-xs"
-                          >
-                            {slot.status}
-                          </Badge>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </CardContent>
-              </Card>
-            )}
-
-            <Card className="w-full">
-              <CardHeader>
-                <CardTitle>Select Date</CardTitle>
-              </CardHeader>
-              <CardContent className="w-full flex flex-col items-center justify-center p-4">
-                <Calendar
-                  mode="single"
-                  selected={selectedDate}
-                  onSelect={setSelectedDate}
-                  disabled={(date) => !canBookDate(date)}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mt-6 px-4 pb-8">
+          {/* LEFT: Main content (step/card area) */}
+          <div className="lg:col-span-2 space-y-6">
+            {step === 1 && (
+              <div className="md:flex gap-4">
+                <BoardroomDetails boardroom={boardroom} />
+                <DateSelector
+                  selectedDate={selectedDate}
+                  setSelectedDate={setSelectedDate}
+                  canBookDate={canBookDate}
+                  onContinue={() => setStep(2)}
                 />
-                <p className="text-xs text-slate-500 mt-2">
-                  You can book up to 30 days in advance
-                </p>
-              </CardContent>
-            </Card>
-
-            {/* Booking Form */}
-            <Card>
-              <CardHeader>
-                <CardTitle>Booking Details</CardTitle>
-                <CardDescription>
-                  Fill in your booking information
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <form onSubmit={handleSubmit} className="space-y-4">
-                  <div className="grid gap-2">
-                    <Label htmlFor="eventTitle">Event Title *</Label>
-                    <Input
-                      id="eventTitle"
-                      value={formData.eventTitle}
-                      onChange={(e) =>
-                        setFormData({ ...formData, eventTitle: e.target.value })
-                      }
-                      placeholder="e.g., Team Meeting, Client Presentation"
-                      required
-                    />
-                  </div>
-
-                  {/* Existing User Checkbox */}
-                  <div className="flex items-center space-x-2">
-                    <Checkbox
-                      id="existingUser"
-                      checked={isExistingUser}
-                      onCheckedChange={(checked) =>
-                        setIsExistingUser(checked as boolean)
-                      }
-                    />
-                    <Label htmlFor="existingUser">Existing User?</Label>
-                  </div>
-
-                  {/* User ID field when checked */}
-                  {isExistingUser && (
-                    <div className="grid gap-2">
-                      <Label htmlFor="userId">User ID *</Label>
-                      <Input
-                        id="userId"
-                        value={userId}
-                        onChange={(e) => setUserId(e.target.value)}
-                        placeholder="Enter your User ID"
-                        required={isExistingUser}
-                      />
-                    </div>
-                  )}
-
-                  <div className="grid gap-2">
-                    <Label htmlFor="bookerName">Your Name *</Label>
-                    <Input
-                      id="bookerName"
-                      value={formData.bookerName}
-                      onChange={(e) =>
-                        setFormData({ ...formData, bookerName: e.target.value })
-                      }
-                      placeholder="Enter your full name"
-                      required
-                    />
-                  </div>
-
-                  <div className="grid gap-2">
-                    <Label htmlFor="bookerEmail">Email Address *</Label>
-                    <Input
-                      id="bookerEmail"
-                      type="email"
-                      value={formData.bookerEmail}
-                      onChange={(e) =>
-                        setFormData({
-                          ...formData,
-                          bookerEmail: e.target.value,
-                        })
-                      }
-                      placeholder="Enter your email"
-                      required
-                    />
-                  </div>
-
-                  <div className="grid gap-2">
-                    <Label htmlFor="phoneNumber">Phone Number *</Label>
-                    <Input
-                      id="phoneNumber"
-                      type="text"
-                      value={formData.phoneNumber}
-                      onChange={(e) =>
-                        setFormData({
-                          ...formData,
-                          phoneNumber: e.target.value,
-                        })
-                      }
-                      placeholder="Enter your Phone Number"
-                      required
-                    />
-                  </div>
-
-                  {/* Time selection */}
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="grid gap-2">
-                      <Label htmlFor="startTime">Start Time *</Label>
-                      <select
-                        id="startTime"
-                        value={formData.startTime}
-                        onChange={(e) =>
-                          setFormData({
-                            ...formData,
-                            startTime: e.target.value,
-                          })
-                        }
-                        className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-                        required
-                      >
-                        <option value="">Select time</option>
-                        {generateTimeSlots().map((time) => (
-                          <option key={time} value={time}>
-                            {time}
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-
-                    <div className="grid gap-2">
-                      <Label htmlFor="endTime">End Time *</Label>
-                      <select
-                        id="endTime"
-                        value={formData.endTime}
-                        onChange={(e) =>
-                          setFormData({ ...formData, endTime: e.target.value })
-                        }
-                        className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-                        required
-                      >
-                        <option value="">Select time</option>
-                        {generateTimeSlots()
-                          .slice(1)
-                          .map((time) => (
-                            <option key={time} value={time}>
-                              {time}
-                            </option>
-                          ))}
-                      </select>
-                    </div>
-                  </div>
-
-                  {/* Slot availability */}
-                  {formData.startTime &&
-                    formData.endTime &&
-                    !isTimeSlotAvailable(
-                      formData.startTime,
-                      formData.endTime
-                    ) && (
-                      <div className="flex items-center text-red-600 text-sm">
-                        <AlertCircle className="h-4 w-4 mr-1" />
-                        This time slot conflicts with an existing booking
-                      </div>
-                    )}
-
-                  {formData.startTime &&
-                    formData.endTime &&
-                    isTimeSlotAvailable(formData.startTime, formData.endTime) &&
-                    tokenData &&
-                    tokensRequired <= tokenData.tokensAvailable &&
-                    tokensRequired > 0 && (
-                      <div className="flex items-center text-green-600 text-sm">
-                        <CheckCircle className="h-4 w-4 mr-1" />
-                        Time slot is available
-                      </div>
-                    )}
-
-                  <Button
-                    type="submit"
-                    disabled={
-                      isLoading || !selectedDate || tokensRequired === 0
-                    }
-                    className="w-full bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white font-semibold"
-                  >
-                    {isLoading
-                      ? "Creating Booking..."
-                      : !isExistingUser
-                      ? "Book Room"
-                      : `Book Room (${tokensRequired} token${
-                          tokensRequired !== 1 ? "s" : ""
-                        })`}
-                  </Button>
-                </form>
-              </CardContent>
-            </Card>
+              </div>
+            )}
+            {step === 2 && (
+              <TimeSlotSelector
+                selectedDate={selectedDate}
+                availableStartSlots={availableStartSlots}
+                generateTimeSlots={generateTimeSlots}
+                allowedDurationsForStart={allowedDurationsForStart}
+                selectedStart={selectedStart}
+                setSelectedStart={setSelectedStart}
+                selectedDuration={selectedDuration}
+                setSelectedDuration={setSelectedDuration}
+                onBack={() => setStep(1)}
+                onContinue={() => setStep(3)}
+                formattedSelectedDate={formattedSelectedDate}
+              />
+            )}
+            {step === 3 && (
+              <BookingForm
+                formData={formData}
+                setFormData={setFormData}
+                isExistingUser={isExistingUser}
+                setIsExistingUser={setIsExistingUser}
+                userId={userId}
+                setUserId={setUserId}
+                fetchTokenData={fetchTokenData}
+                tokenData={tokenData}
+                tokensRequired={tokensRequired}
+                selectedStart={selectedStart}
+                selectedDuration={selectedDuration}
+                isLoading={isLoading}
+                onBack={() => setStep(2)}
+                onSubmit={handleSubmit}
+              />
+            )}
           </div>
+
+          {/* RIGHT: Sticky summary */}
+          <BookingSummary
+            boardroom={boardroom}
+            formattedSelectedDate={formattedSelectedDate}
+            selectedStart={selectedStart}
+            selectedDuration={selectedDuration}
+            isExistingUser={isExistingUser}
+            tokenData={tokenData}
+            onEditDate={() => setStep(1)}
+            onEditTime={() => setStep(2)}
+          />
         </div>
       </DialogContent>
     </Dialog>

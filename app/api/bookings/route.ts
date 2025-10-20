@@ -18,6 +18,10 @@ export async function POST(request: NextRequest) {
       phoneNumber,
     } = body;
 
+
+    console.log();
+    
+
     // Calculate duration in hours
     const start = new Date(startTime);
     const end = new Date(endTime);
@@ -36,7 +40,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Check if enough tokens are available
-    if (tokenRecord.availableCount < tokensUsed) {
+    if (tokenRecord.availableCount < tokensUsed && isExistingUser === true) {
       return NextResponse.json(
         { error: "Insufficient tokens available" },
         { status: 400 }
