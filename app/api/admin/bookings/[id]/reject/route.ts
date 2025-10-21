@@ -19,7 +19,6 @@ export async function POST(
       where: { id: params.id },
     });
 
-    console.log(booking);
 
     if (!booking) {
       return NextResponse.json({ error: "Booking not found" }, { status: 404 });

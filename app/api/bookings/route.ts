@@ -19,7 +19,7 @@ export async function POST(request: NextRequest) {
     } = body;
 
 
-    console.log();
+
     
 
     // Calculate duration in hours

@@ -53,7 +53,7 @@ export async function PUT(
     }
 
     const body = await request.json()
-    const { name, description, dimensions, capacity, imageUrl, facilities } = body
+    const { name, description, dimensions, capacity, imageUrl, facilities,pricingOptions } = body
 
     const boardroom = await prisma.boardroom.update({
       where: { id: params.id },
@@ -63,6 +63,7 @@ export async function PUT(
         dimensions,
         capacity: parseInt(capacity),
         imageUrl,
+        pricingOptions :Array.isArray(pricingOptions) ? pricingOptions : [],
         facilities: Array.isArray(facilities) ? facilities : [],
       },
     })

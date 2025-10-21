@@ -100,7 +100,7 @@ export function BookingDialog({
   const [isFetchingUser, setIsFetchingUser] = useState(false);
   const [existingBookings, setExistingBookings] = useState<any[]>([]);
 
-  console.log(tokenData);
+
 
   const fetchBoardroomBookings = async () => {
     try {
@@ -375,13 +375,12 @@ export function BookingDialog({
 
   const displayTokenData = isExistingUser ? userTokenData : session?.user;
 
-  console.log(userTokenData);
+
 
   const availableTokens = isExistingUser
     ? userTokenData?.tokensAvailable || 0
     : tokenData?.availableCount || 0;
 
-  console.log();
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>

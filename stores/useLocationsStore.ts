@@ -44,7 +44,7 @@ export const useLocationsStore = create<LocationInterface>((set) => ({
         `/api/locations/${locationId}?userId=${userId}&role=${userRole}`
       );
       const data: Location = await response.json();
-      console.log(data);
+
       
       set({ locationById: data, loading: false });
     } catch (error) {

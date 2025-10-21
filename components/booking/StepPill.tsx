@@ -1,4 +1,3 @@
-
 import { Calendar, Clock, CheckCircle } from "lucide-react";
 
 interface StepPillProps {

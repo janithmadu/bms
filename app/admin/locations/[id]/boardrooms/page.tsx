@@ -66,7 +66,6 @@ export default function LocationBoardroomsPage() {
       );
       const data = await response.json();
 
-      console.log(data.error);
       if (data.error) {
         toast.error(data.error);
       }

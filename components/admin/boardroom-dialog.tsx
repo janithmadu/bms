@@ -32,9 +32,13 @@ export function BoardroomDialog({ open, onOpenChange, boardroom, locationId, onS
     dimensions: '',
     capacity: '',
     imageUrl: '',
-    facilities: [] as string[]
+    facilities: [] as string[],
+    pricingOptions: [] as { seatingArrangement: string, timeRange: string, price: string }[]
   })
   const [newFacility, setNewFacility] = useState('')
+  const [newSeatingArrangement, setNewSeatingArrangement] = useState('')
+  const [newTimeRange, setNewTimeRange] = useState('')
+  const [newPrice, setNewPrice] = useState('')
   const [isLoading, setIsLoading] = useState(false)
 
   useEffect(() => {
@@ -45,7 +49,8 @@ export function BoardroomDialog({ open, onOpenChange, boardroom, locationId, onS
         dimensions: boardroom.dimensions || '',
         capacity: boardroom.capacity?.toString() || '',
         imageUrl: boardroom.imageUrl || '',
-        facilities: Array.isArray(boardroom.facilities) ? boardroom.facilities : []
+        facilities: Array.isArray(boardroom.facilities) ? boardroom.facilities : [],
+        pricingOptions: Array.isArray(boardroom.pricingOptions) ? boardroom.pricingOptions : []
       })
     } else {
       setFormData({
@@ -54,7 +59,8 @@ export function BoardroomDialog({ open, onOpenChange, boardroom, locationId, onS
         dimensions: '',
         capacity: '',
         imageUrl: '',
-        facilities: []
+        facilities: [],
+        pricingOptions: []
       })
     }
   }, [boardroom, open])
@@ -72,6 +78,8 @@ export function BoardroomDialog({ open, onOpenChange, boardroom, locationId, onS
         capacity: parseInt(formData.capacity),
         locationId: boardroom ? undefined : locationId
       }
+
+// DEBUG: Check payload here
 
       const response = await fetch(url, {
         method,
@@ -122,9 +130,39 @@ export function BoardroomDialog({ open, onOpenChange, boardroom, locationId, onS
     }
   }
 
+  // FIXED: Flexible validation for pricing options
+  const addPricingOption = () => {
+    const seating = newSeatingArrangement.trim()
+    const time = newTimeRange.trim()
+    const price = newPrice.trim()
+
+    // Add if ANY field has value
+    if (seating || time || price) {
+      setFormData({
+        ...formData,
+        pricingOptions: [...formData.pricingOptions, {
+          seatingArrangement: seating,
+          timeRange: time,
+          price: price
+        }]
+      })
+      // Clear all fields
+      setNewSeatingArrangement('')
+      setNewTimeRange('')
+      setNewPrice('')
+    }
+  }
+
+  const removePricingOption = (index: number) => {
+    setFormData({
+      ...formData,
+      pricingOptions: formData.pricingOptions.filter((_, i) => i !== index)
+    })
+  }
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto">
+      <DialogContent className="sm:max-w-[700px] max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>
             {boardroom ? 'Edit Boardroom' : 'Add New Boardroom'}
@@ -200,9 +238,10 @@ export function BoardroomDialog({ open, onOpenChange, boardroom, locationId, onS
                   className="w-full h-48 object-cover rounded-lg mt-2"
                 />
               )}
+             
             </div>
 
-            {/* Facilities */}
+            {/* Facilities - ORIGINAL */}
             <div className="grid gap-2">
               <Label>Facilities & Amenities</Label>
               
@@ -263,6 +302,85 @@ export function BoardroomDialog({ open, onOpenChange, boardroom, locationId, onS
                   <Plus className="h-4 w-4" />
                 </Button>
               </div>
+            </div>
+
+            {/* FIXED PRICING OPTIONS SECTION */}
+            <div className="grid gap-4">
+              <Label className="text-lg font-semibold">Pricing Options</Label>
+              
+              {/* Display Current Pricing Options */}
+              {formData.pricingOptions.length > 0 && (
+                <div className="space-y-2 p-4 bg-slate-50 rounded-lg border">
+                  <p className="text-sm font-medium text-slate-700">Current Pricing:</p>
+                  {formData.pricingOptions.map((option, index) => (
+                    <div key={index} className="flex items-center justify-between p-2 bg-white rounded-md border">
+                      <div className="text-sm">
+                        <span className="font-medium">{option.seatingArrangement || 'N/A'} seats</span> - 
+                        <span className="ml-1">{option.timeRange || 'N/A'}</span> - 
+                        <span className="ml-2 font-bold text-green-600">{option.price || 'N/A'}</span>
+                      </div>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => removePricingOption(index)}
+                        className="h-6 w-6 p-0 text-red-500 hover:text-red-700"
+                      >
+                        <X className="h-3 w-3" />
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {/* Add New Pricing Option */}
+              <div className="grid grid-cols-3 gap-3 p-3 bg-blue-50 rounded-lg">
+                <div>
+                  <Label htmlFor="seating" className="text-xs">Seats</Label>
+                  <Input
+                    id="seating"
+                    value={newSeatingArrangement}
+                    onChange={(e) => setNewSeatingArrangement(e.target.value)}
+                    placeholder="e.g., 8"
+                    className="text-sm"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="time" className="text-xs">Time</Label>
+                  <Input
+                    id="time"
+                    value={newTimeRange}
+                    onChange={(e) => setNewTimeRange(e.target.value)}
+                    placeholder="e.g., 1 hour"
+                    className="text-sm"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="price" className="text-xs">Price</Label>
+                  <Input
+                    id="price"
+                    value={newPrice}
+                    onChange={(e) => setNewPrice(e.target.value)}
+                    placeholder="e.g., 7500LKR"
+                    className="text-sm"
+                  />
+                </div>
+              </div>
+
+              <Button
+                type="button"
+                variant="default"
+                onClick={addPricingOption}
+                disabled={!newSeatingArrangement.trim() && !newTimeRange.trim() && !newPrice.trim()}
+                className="w-full justify-center"
+              >
+                <Plus className="h-4 w-4 mr-2" />
+                Add Pricing Option
+              </Button>
+
+              <p className="text-xs text-slate-500">
+                💡 Fill any field and click "Add" - you can add multiple options
+              </p>
             </div>
           </div>
           <DialogFooter>

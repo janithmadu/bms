@@ -12,8 +12,7 @@ export async function GET(req: Request) {
     if (!userId) {
       return NextResponse.json({ error: "Missing userId" }, { status: 400 });
     }
-    console.log(role !== "admin");
-    
+
     let locations;
     if (role !== "admin") {
       locations = await prisma.location.findMany({
