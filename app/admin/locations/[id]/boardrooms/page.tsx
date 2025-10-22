@@ -23,6 +23,7 @@ import {
   Trash2,
   Calendar,
   Building2,
+  Copy,
 } from "lucide-react";
 import { BoardroomDialog } from "@/components/admin/boardroom-dialog";
 import { toast } from "sonner";
@@ -110,6 +111,39 @@ export default function LocationBoardroomsPage() {
     } catch (error) {
       console.error("Error deleting boardroom:", error);
       toast.error("Failed to delete boardroom");
+    }
+  };
+
+  // NEW: Handle boardroom duplication
+  const handleDuplicate = async (boardroom: Boardroom) => {
+    if (!confirm(`Duplicate "${boardroom.name}" boardroom?`)) {
+      return;
+    }
+
+    try {
+      const response = await fetch("/api/boardrooms/duplicate", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          originalBoardroomId: boardroom.id,
+          locationId: locationId,
+          newName: `${boardroom.name} (Copy)`, // Default name for duplicate
+        }),
+      });
+
+      const data = await response.json();
+
+      if (response.ok) {
+        toast.success("Boardroom duplicated successfully");
+        fetchLocation();
+      } else {
+        throw new Error(data.error || "Failed to duplicate boardroom");
+      }
+    } catch (error) {
+      console.error("Error duplicating boardroom:", error);
+      toast.error("Failed to duplicate boardroom");
     }
   };
 
@@ -254,7 +288,17 @@ export default function LocationBoardroomsPage() {
                         <Calendar className="h-16 w-16 text-slate-400" />
                       </div>
                     )}
+                    {/* UPDATED: Added Duplicate button to top-right actions */}
                     <div className="absolute top-2 right-2 flex space-x-1">
+                      <Button
+                        variant="secondary"
+                        size="sm"
+                        onClick={() => handleDuplicate(boardroom)}
+                        className="bg-green-500/90 hover:bg-green-600 text-white"
+                        title="Duplicate boardroom"
+                      >
+                        <Copy className="h-4 w-4" />
+                      </Button>
                       <Button
                         variant="secondary"
                         size="sm"
@@ -324,7 +368,18 @@ export default function LocationBoardroomsPage() {
                       )}
                     </div>
 
+                    {/* UPDATED: Added Duplicate button to bottom actions */}
                     <div className="flex space-x-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handleDuplicate(boardroom)}
+                        className="flex-1"
+                        title="Duplicate boardroom"
+                      >
+                        <Copy className="h-4 w-4 mr-1" />
+                        Duplicate
+                      </Button>
                       <Button
                         variant="outline"
                         size="sm"

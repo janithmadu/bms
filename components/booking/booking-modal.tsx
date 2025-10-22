@@ -228,8 +228,9 @@ export function BookingModal({
         timeRange: string;
         seatingArrangement: string;
       }
-
-      const match = boardroom?.pricingOptions.find(
+     
+     
+      const match =boardroom?.pricingOptions !== null && boardroom?.pricingOptions.find(
         (opt: PricingOption) =>
           parseInt(opt.timeRange) === hours &&
           selectedPriceOption === opt.seatingArrangement
@@ -248,7 +249,7 @@ export function BookingModal({
           boardroomId: boardroom.id,
           isExistingUser,
           UserID: isExistingUser ? userId : null,
-          Price: match ? match.price : "0",
+          Price: !match ? "0" : match.price,
         }),
       });
 
