@@ -19,18 +19,13 @@ export async function POST(request: NextRequest) {
       Price
     } = body;
 
-
-
-
-      
-
     // Calculate duration in hours
     const start = new Date(startTime);
     const end = new Date(endTime);
     const duration = (end.getTime() - start.getTime()) / (1000 * 60 * 60);
     const tokensUsed = Math.ceil(duration);
 
-    // Get current token status
+    // Get current token status (OUTSIDE transaction - fast read)
     let tokenRecord = await prisma.token.findUnique({
       where: { id: "singleton" },
     });
@@ -49,63 +44,64 @@ export async function POST(request: NextRequest) {
       );
     }
 
-
-    // Execute transaction without mixing different return types
-    const result = await prisma.$transaction(async (tx) => {
-      // Create booking first
-      const booking = await tx.booking.create({
-        data: {
-          eventTitle,
-          bookerName,
-          bookerEmail,
-          date: new Date(date),
-          startTime: start,
-          endTime: end,
-          duration,
-          tokensUsed,
-          UserID: UserID ?? "",
-          isExsisting: isExistingUser ? true : false,
-          price: Price ?? "0",
-          status: "pending",
-          phoneNumber,
-          booker: {
-            connect: { id: bookerId ?? "7Wcpw" }, // ✅ relation way
-          },
-
-          // ✅ Fix: connect boardroom relation instead of boardroomId
-          boardroom: {
-            connect: { id: boardroomId ?? "" },
-          },
-        },
-      });
-
-      // Update user tokens if user exists
-      if (isExistingUser && UserID) {
-        await tx.user.update({
-          where: { id: UserID },
+    // ✅ OPTIMIZED TRANSACTION - INCREASE TIMEOUT TO 10s
+    const result = await prisma.$transaction(
+      async (tx) => {
+        // 1. Create booking FIRST (minimal data)
+        const booking = await tx.booking.create({
           data: {
-            tokensAvailable: { decrement: tokensUsed },
-            tokensUsed: { increment: tokensUsed },
+            eventTitle,
+            bookerName,
+            bookerEmail,
+            date: new Date(date),
+            startTime: start,
+            endTime: end,
+            duration,
+            tokensUsed,
+            UserID: UserID ?? "",
+            isExsisting: isExistingUser ? true : false,
+            price: Price ?? "0",
+            status: "pending",
+            phoneNumber,
+            booker: { connect: { id: bookerId ?? "7Wcpw" } },
+            boardroom: { connect: { id: boardroomId ?? "" } },
           },
         });
-      }
 
-      // Now fetch the complete booking with relationships
-      const completeBooking = await tx.booking.findUnique({
-        where: { id: booking.id },
-        include: {
-          boardroom: {
-            include: {
-              location: true,
+        // 2. Update user tokens if needed (simple update)
+        if (isExistingUser && UserID) {
+          await tx.user.update({
+            where: { id: UserID },
+            data: {
+              tokensAvailable: { decrement: tokensUsed },
+              tokensUsed: { increment: tokensUsed },
             },
+          });
+        }
+
+        // 3. Return booking ID - NO findUnique in transaction!
+        return { id: booking.id };
+      },
+      {
+        // ✅ INCREASE TIMEOUT TO 10 SECONDS
+        maxWait: 5000,
+        timeout: 10000,
+      }
+    );
+
+    // ✅ FETCH COMPLETE DATA OUTSIDE TRANSACTION (no timeout risk)
+    const completeBooking = await prisma.booking.findUnique({
+      where: { id: result.id },
+      include: {
+        boardroom: {
+          include: {
+            location: true,
           },
         },
-      });
-
-      return completeBooking;
+      },
     });
 
-    return NextResponse.json(result);
+    return NextResponse.json(completeBooking);
   } catch (error) {
     console.error("Error creating booking:", error);
     return NextResponse.json(
