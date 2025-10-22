@@ -1,15 +1,23 @@
 "use client"
 
-import { useState, useEffect } from 'react'
-import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
-import { Textarea } from '@/components/ui/textarea'
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
-import { Badge } from '@/components/ui/badge'
-import { CldUploadWidget } from 'next-cloudinary'
-import { Upload, X, Plus } from 'lucide-react'
-import { toast } from 'sonner'
+import { useState, useEffect } from "react"
+import Image from "next/image"
+import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
+import { Textarea } from "@/components/ui/textarea"
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog"
+import { Badge } from "@/components/ui/badge"
+import { CldUploadWidget } from "next-cloudinary"
+import { Upload, X, Plus } from "lucide-react"
+import { toast } from "sonner"
 
 interface BoardroomDialogProps {
   open: boolean
@@ -20,47 +28,73 @@ interface BoardroomDialogProps {
 }
 
 const commonFacilities = [
-  'Projector', 'TV Screen', 'Whiteboard', 'Conference Phone', 'Video Conferencing',
-  'WiFi', 'Air Conditioning', 'Natural Light', 'Flip Chart', 'Markers',
-  'Power Outlets', 'HDMI Cables', 'Microphone', 'Sound System', 'Catering Setup'
+  "Projector",
+  "TV Screen",
+  "Whiteboard",
+  "Conference Phone",
+  "Video Conferencing",
+  "WiFi",
+  "Air Conditioning",
+  "Natural Light",
+  "Flip Chart",
+  "Markers",
+  "Power Outlets",
+  "HDMI Cables",
+  "Microphone",
+  "Sound System",
+  "Catering Setup",
 ]
 
-export function BoardroomDialog({ open, onOpenChange, boardroom, locationId, onSave }: BoardroomDialogProps) {
+export function BoardroomDialog({
+  open,
+  onOpenChange,
+  boardroom,
+  locationId,
+  onSave,
+}: BoardroomDialogProps) {
   const [formData, setFormData] = useState({
-    name: '',
-    description: '',
-    dimensions: '',
-    capacity: '',
-    imageUrl: '',
+    name: "",
+    description: "",
+    dimensions: "",
+    capacity: "",
+    imageUrl: "",
     facilities: [] as string[],
-    pricingOptions: [] as { seatingArrangement: string, timeRange: string, price: string }[]
+    pricingOptions: [] as {
+      seatingArrangement: string
+      timeRange: string
+      price: string
+    }[],
   })
-  const [newFacility, setNewFacility] = useState('')
-  const [newSeatingArrangement, setNewSeatingArrangement] = useState('')
-  const [newTimeRange, setNewTimeRange] = useState('')
-  const [newPrice, setNewPrice] = useState('')
+  const [newFacility, setNewFacility] = useState("")
+  const [newSeatingArrangement, setNewSeatingArrangement] = useState("")
+  const [newTimeRange, setNewTimeRange] = useState("")
+  const [newPrice, setNewPrice] = useState("")
   const [isLoading, setIsLoading] = useState(false)
 
   useEffect(() => {
     if (boardroom) {
       setFormData({
-        name: boardroom.name || '',
-        description: boardroom.description || '',
-        dimensions: boardroom.dimensions || '',
-        capacity: boardroom.capacity?.toString() || '',
-        imageUrl: boardroom.imageUrl || '',
-        facilities: Array.isArray(boardroom.facilities) ? boardroom.facilities : [],
-        pricingOptions: Array.isArray(boardroom.pricingOptions) ? boardroom.pricingOptions : []
+        name: boardroom.name || "",
+        description: boardroom.description || "",
+        dimensions: boardroom.dimensions || "",
+        capacity: boardroom.capacity?.toString() || "",
+        imageUrl: boardroom.imageUrl || "",
+        facilities: Array.isArray(boardroom.facilities)
+          ? boardroom.facilities
+          : [],
+        pricingOptions: Array.isArray(boardroom.pricingOptions)
+          ? boardroom.pricingOptions
+          : [],
       })
     } else {
       setFormData({
-        name: '',
-        description: '',
-        dimensions: '',
-        capacity: '',
-        imageUrl: '',
+        name: "",
+        description: "",
+        dimensions: "",
+        capacity: "",
+        imageUrl: "",
         facilities: [],
-        pricingOptions: []
+        pricingOptions: [],
       })
     }
   }, [boardroom, open])
@@ -70,34 +104,32 @@ export function BoardroomDialog({ open, onOpenChange, boardroom, locationId, onS
     setIsLoading(true)
 
     try {
-      const url = boardroom ? `/api/boardrooms/${boardroom.id}` : '/api/boardrooms'
-      const method = boardroom ? 'PUT' : 'POST'
+      const url = boardroom ? `/api/boardrooms/${boardroom.id}` : "/api/boardrooms"
+      const method = boardroom ? "PUT" : "POST"
 
       const payload = {
         ...formData,
         capacity: parseInt(formData.capacity),
-        locationId: boardroom ? undefined : locationId
+        locationId: boardroom ? undefined : locationId,
       }
-
-// DEBUG: Check payload here
 
       const response = await fetch(url, {
         method,
         headers: {
-          'Content-Type': 'application/json',
+          "Content-Type": "application/json",
         },
         body: JSON.stringify(payload),
       })
 
       if (response.ok) {
-        toast.success(`Boardroom ${boardroom ? 'updated' : 'created'} successfully`)
+        toast.success(`Boardroom ${boardroom ? "updated" : "created"} successfully`)
         onSave()
       } else {
-        throw new Error(`Failed to ${boardroom ? 'update' : 'create'} boardroom`)
+        throw new Error(`Failed to ${boardroom ? "update" : "create"} boardroom`)
       }
     } catch (error) {
-      console.error('Error saving boardroom:', error)
-      toast.error(`Failed to ${boardroom ? 'update' : 'create'} boardroom`)
+      console.error("Error saving boardroom:", error)
+      toast.error(`Failed to ${boardroom ? "update" : "create"} boardroom`)
     } finally {
       setIsLoading(false)
     }
@@ -111,7 +143,7 @@ export function BoardroomDialog({ open, onOpenChange, boardroom, locationId, onS
     if (facility && !formData.facilities.includes(facility)) {
       setFormData({
         ...formData,
-        facilities: [...formData.facilities, facility]
+        facilities: [...formData.facilities, facility],
       })
     }
   }
@@ -119,44 +151,44 @@ export function BoardroomDialog({ open, onOpenChange, boardroom, locationId, onS
   const removeFacility = (facilityToRemove: string) => {
     setFormData({
       ...formData,
-      facilities: formData.facilities.filter(f => f !== facilityToRemove)
+      facilities: formData.facilities.filter((f) => f !== facilityToRemove),
     })
   }
 
   const handleAddCustomFacility = () => {
     if (newFacility.trim()) {
       addFacility(newFacility.trim())
-      setNewFacility('')
+      setNewFacility("")
     }
   }
 
-  // FIXED: Flexible validation for pricing options
   const addPricingOption = () => {
     const seating = newSeatingArrangement.trim()
     const time = newTimeRange.trim()
     const price = newPrice.trim()
 
-    // Add if ANY field has value
     if (seating || time || price) {
       setFormData({
         ...formData,
-        pricingOptions: [...formData.pricingOptions, {
-          seatingArrangement: seating,
-          timeRange: time,
-          price: price
-        }]
+        pricingOptions: [
+          ...formData.pricingOptions,
+          {
+            seatingArrangement: seating,
+            timeRange: time,
+            price: price,
+          },
+        ],
       })
-      // Clear all fields
-      setNewSeatingArrangement('')
-      setNewTimeRange('')
-      setNewPrice('')
+      setNewSeatingArrangement("")
+      setNewTimeRange("")
+      setNewPrice("")
     }
   }
 
   const removePricingOption = (index: number) => {
     setFormData({
       ...formData,
-      pricingOptions: formData.pricingOptions.filter((_, i) => i !== index)
+      pricingOptions: formData.pricingOptions.filter((_, i) => i !== index),
     })
   }
 
@@ -165,15 +197,15 @@ export function BoardroomDialog({ open, onOpenChange, boardroom, locationId, onS
       <DialogContent className="sm:max-w-[700px] max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>
-            {boardroom ? 'Edit Boardroom' : 'Add New Boardroom'}
+            {boardroom ? "Edit Boardroom" : "Add New Boardroom"}
           </DialogTitle>
           <DialogDescription>
-            {boardroom 
-              ? 'Update the boardroom information below.'
-              : 'Fill in the details to create a new boardroom.'
-            }
+            {boardroom
+              ? "Update the boardroom information below."
+              : "Fill in the details to create a new boardroom."}
           </DialogDescription>
         </DialogHeader>
+
         <form onSubmit={handleSubmit}>
           <div className="grid gap-6 py-4">
             {/* Basic Information */}
@@ -183,7 +215,9 @@ export function BoardroomDialog({ open, onOpenChange, boardroom, locationId, onS
                 <Input
                   id="name"
                   value={formData.name}
-                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                  onChange={(e) =>
+                    setFormData({ ...formData, name: e.target.value })
+                  }
                   placeholder="e.g., Conference Room A"
                   required
                 />
@@ -195,7 +229,9 @@ export function BoardroomDialog({ open, onOpenChange, boardroom, locationId, onS
                   type="number"
                   min="1"
                   value={formData.capacity}
-                  onChange={(e) => setFormData({ ...formData, capacity: e.target.value })}
+                  onChange={(e) =>
+                    setFormData({ ...formData, capacity: e.target.value })
+                  }
                   placeholder="e.g., 12"
                   required
                 />
@@ -207,7 +243,9 @@ export function BoardroomDialog({ open, onOpenChange, boardroom, locationId, onS
               <Input
                 id="dimensions"
                 value={formData.dimensions}
-                onChange={(e) => setFormData({ ...formData, dimensions: e.target.value })}
+                onChange={(e) =>
+                  setFormData({ ...formData, dimensions: e.target.value })
+                }
                 placeholder="e.g., 20ft x 15ft"
               />
             </div>
@@ -217,7 +255,9 @@ export function BoardroomDialog({ open, onOpenChange, boardroom, locationId, onS
               <Textarea
                 id="description"
                 value={formData.description}
-                onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                onChange={(e) =>
+                  setFormData({ ...formData, description: e.target.value })
+                }
                 placeholder="Brief description of the boardroom"
                 rows={3}
               />
@@ -228,28 +268,35 @@ export function BoardroomDialog({ open, onOpenChange, boardroom, locationId, onS
               <Label>Room Image URL (Optional)</Label>
               <Input
                 value={formData.imageUrl}
-                onChange={(e) => setFormData({ ...formData, imageUrl: e.target.value })}
+                onChange={(e) =>
+                  setFormData({ ...formData, imageUrl: e.target.value })
+                }
                 placeholder="Enter image URL or upload after creating boardroom"
               />
               {formData.imageUrl && (
-                <img
-                  src={formData.imageUrl}
-                  alt="Boardroom preview"
-                  className="w-full h-48 object-cover rounded-lg mt-2"
-                />
+                <div className="relative w-full h-48 mt-2">
+                  <Image
+                    src={formData.imageUrl}
+                    alt="Boardroom preview"
+                    fill
+                    className="object-cover rounded-lg"
+                  />
+                </div>
               )}
-             
             </div>
 
-            {/* Facilities - ORIGINAL */}
+            {/* Facilities */}
             <div className="grid gap-2">
               <Label>Facilities & Amenities</Label>
-              
-              {/* Selected Facilities */}
+
               {formData.facilities.length > 0 && (
                 <div className="flex flex-wrap gap-2 p-3 bg-slate-50 rounded-lg">
                   {formData.facilities.map((facility, index) => (
-                    <Badge key={index} variant="secondary" className="flex items-center gap-1">
+                    <Badge
+                      key={index}
+                      variant="secondary"
+                      className="flex items-center gap-1"
+                    >
                       {facility}
                       <button
                         type="button"
@@ -263,35 +310,38 @@ export function BoardroomDialog({ open, onOpenChange, boardroom, locationId, onS
                 </div>
               )}
 
-              {/* Common Facilities */}
               <div className="space-y-2">
                 <p className="text-sm text-slate-600">Common facilities:</p>
                 <div className="flex flex-wrap gap-2">
                   {commonFacilities
-                    .filter(facility => !formData.facilities.includes(facility))
+                    .filter(
+                      (facility) => !formData.facilities.includes(facility)
+                    )
                     .map((facility, index) => (
-                    <Button
-                      key={index}
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      onClick={() => addFacility(facility)}
-                      className="text-xs"
-                    >
-                      <Plus className="h-3 w-3 mr-1" />
-                      {facility}
-                    </Button>
-                  ))}
+                      <Button
+                        key={index}
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => addFacility(facility)}
+                        className="text-xs"
+                      >
+                        <Plus className="h-3 w-3 mr-1" />
+                        {facility}
+                      </Button>
+                    ))}
                 </div>
               </div>
 
-              {/* Custom Facility Input */}
               <div className="flex gap-2">
                 <Input
                   value={newFacility}
                   onChange={(e) => setNewFacility(e.target.value)}
                   placeholder="Add custom facility"
-                  onKeyPress={(e) => e.key === 'Enter' && (e.preventDefault(), handleAddCustomFacility())}
+                  onKeyPress={(e) =>
+                    e.key === "Enter" &&
+                    (e.preventDefault(), handleAddCustomFacility())
+                  }
                 />
                 <Button
                   type="button"
@@ -304,20 +354,28 @@ export function BoardroomDialog({ open, onOpenChange, boardroom, locationId, onS
               </div>
             </div>
 
-            {/* FIXED PRICING OPTIONS SECTION */}
+            {/* Pricing Options */}
             <div className="grid gap-4">
               <Label className="text-lg font-semibold">Pricing Options</Label>
-              
-              {/* Display Current Pricing Options */}
+
               {formData.pricingOptions.length > 0 && (
                 <div className="space-y-2 p-4 bg-slate-50 rounded-lg border">
-                  <p className="text-sm font-medium text-slate-700">Current Pricing:</p>
+                  <p className="text-sm font-medium text-slate-700">
+                    Current Pricing:
+                  </p>
                   {formData.pricingOptions.map((option, index) => (
-                    <div key={index} className="flex items-center justify-between p-2 bg-white rounded-md border">
+                    <div
+                      key={index}
+                      className="flex items-center justify-between p-2 bg-white rounded-md border"
+                    >
                       <div className="text-sm">
-                        <span className="font-medium">{option.seatingArrangement || 'N/A'} seats</span> - 
-                        <span className="ml-1">{option.timeRange || 'N/A'}</span> - 
-                        <span className="ml-2 font-bold text-green-600">{option.price || 'N/A'}</span>
+                        <span className="font-medium">
+                          {option.seatingArrangement || "N/A"} seats
+                        </span>{" "}
+                        -<span className="ml-1">{option.timeRange || "N/A"}</span>{" "}
+                        -<span className="ml-2 font-bold text-green-600">
+                          {option.price || "N/A"}
+                        </span>
                       </div>
                       <Button
                         type="button"
@@ -333,20 +391,25 @@ export function BoardroomDialog({ open, onOpenChange, boardroom, locationId, onS
                 </div>
               )}
 
-              {/* Add New Pricing Option */}
               <div className="grid grid-cols-3 gap-3 p-3 bg-blue-50 rounded-lg">
                 <div>
-                  <Label htmlFor="seating" className="text-xs">Seats</Label>
+                  <Label htmlFor="seating" className="text-xs">
+                    Seats
+                  </Label>
                   <Input
                     id="seating"
                     value={newSeatingArrangement}
-                    onChange={(e) => setNewSeatingArrangement(e.target.value)}
+                    onChange={(e) =>
+                      setNewSeatingArrangement(e.target.value)
+                    }
                     placeholder="e.g., 8"
                     className="text-sm"
                   />
                 </div>
                 <div>
-                  <Label htmlFor="time" className="text-xs">Time</Label>
+                  <Label htmlFor="time" className="text-xs">
+                    Time
+                  </Label>
                   <Input
                     id="time"
                     value={newTimeRange}
@@ -356,7 +419,9 @@ export function BoardroomDialog({ open, onOpenChange, boardroom, locationId, onS
                   />
                 </div>
                 <div>
-                  <Label htmlFor="price" className="text-xs">Price</Label>
+                  <Label htmlFor="price" className="text-xs">
+                    Price
+                  </Label>
                   <Input
                     id="price"
                     value={newPrice}
@@ -371,7 +436,11 @@ export function BoardroomDialog({ open, onOpenChange, boardroom, locationId, onS
                 type="button"
                 variant="default"
                 onClick={addPricingOption}
-                disabled={!newSeatingArrangement.trim() && !newTimeRange.trim() && !newPrice.trim()}
+                disabled={
+                  !newSeatingArrangement.trim() &&
+                  !newTimeRange.trim() &&
+                  !newPrice.trim()
+                }
                 className="w-full justify-center"
               >
                 <Plus className="h-4 w-4 mr-2" />
@@ -379,16 +448,18 @@ export function BoardroomDialog({ open, onOpenChange, boardroom, locationId, onS
               </Button>
 
               <p className="text-xs text-slate-500">
-                💡 Fill any field and click "Add" - you can add multiple options
+                💡 Fill any field and click &quot;Add&quot; - you can add multiple
+                options
               </p>
             </div>
           </div>
+
           <DialogFooter>
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
               Cancel
             </Button>
             <Button type="submit" disabled={isLoading}>
-              {isLoading ? 'Saving...' : boardroom ? 'Update' : 'Create'}
+              {isLoading ? "Saving..." : boardroom ? "Update" : "Create"}
             </Button>
           </DialogFooter>
         </form>
