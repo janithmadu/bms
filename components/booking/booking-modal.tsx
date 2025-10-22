@@ -55,7 +55,7 @@ export function BookingModal({
   const [selectedStart, setSelectedStart] = useState<string | null>(null);
   const [selectedDuration, setSelectedDuration] = useState<number | null>(null);
   const [tokensRequired, setTokensRequired] = useState<number>(0);
-  const [selectedPriceOption,setselectedPriceOption]= useState<string>("");
+  const [selectedPriceOption, setselectedPriceOption] = useState<string>("");
   const [isExistingUser, setIsExistingUser] = useState(false);
   const [userId, setUserId] = useState("");
   const [tokenData, setTokenData] = useState<TokenData | null>(null);
@@ -223,6 +223,20 @@ export function BookingModal({
         return;
       }
 
+      const hours = selectedDuration / 60;
+      interface PricingOption {
+        timeRange: string;
+        seatingArrangement: string;
+      }
+
+      const match = boardroom?.pricingOptions.find(
+        (opt: PricingOption) =>
+          parseInt(opt.timeRange) === hours &&
+          selectedPriceOption === opt.seatingArrangement
+      );
+
+    
+
       const resp = await fetch("/api/bookings", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -234,6 +248,7 @@ export function BookingModal({
           boardroomId: boardroom.id,
           isExistingUser,
           UserID: isExistingUser ? userId : null,
+          Price: match ? match.price : "0",
         }),
       });
 
@@ -253,6 +268,8 @@ export function BookingModal({
         onOpenChange(false);
       } else {
         const err = await resp.json();
+        console.log(err);
+
         toast.error(err?.error || "Failed to create booking");
       }
     } catch (err) {
@@ -328,7 +345,7 @@ export function BookingModal({
             {step === 2 && (
               <TimeSlotSelector
                 selectedDate={selectedDate}
-               setSelectedPriceOption={setselectedPriceOption}
+                setSelectedPriceOption={setselectedPriceOption}
                 availableStartSlots={availableStartSlots}
                 generateTimeSlots={generateTimeSlots}
                 allowedDurationsForStart={allowedDurationsForStart}
@@ -355,7 +372,7 @@ export function BookingModal({
             selectedStart={selectedStart}
             selectedDuration={selectedDuration}
             setSelectedDuration={setSelectedDuration}
-              selectedPriceOptionSeat={selectedPriceOption}
+            selectedPriceOptionSeat={selectedPriceOption}
             isExistingUser={isExistingUser}
             setIsExistingUser={setIsExistingUser}
             userId={userId}

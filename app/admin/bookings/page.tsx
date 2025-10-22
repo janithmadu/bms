@@ -35,6 +35,7 @@ import {
   Phone,
   Download,
   Loader2,
+  Coins,
 } from "lucide-react";
 import { format, isToday, isTomorrow, isYesterday, parse } from "date-fns";
 import { toast } from "sonner";
@@ -54,6 +55,8 @@ interface Booking {
   endTime: string;
   duration: number;
   tokensUsed: number;
+  // Optional price in local currency (LKR)
+  price?: number;
   phoneNumber: string;
   status: string;
   boardroom: {
@@ -773,7 +776,7 @@ export default function BookingsPage() {
                       </div>
                     </CardHeader>
                     <CardContent>
-                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                         <div className="flex items-center text-sm text-slate-600">
                           <CalendarIcon className="h-4 w-4 mr-2" />
                           {getDateLabel(booking.date)}
@@ -787,6 +790,12 @@ export default function BookingsPage() {
                           <Users className="h-4 w-4 mr-2" />
                           {booking.boardroom.capacity} capacity
                         </div>
+                        {
+                          booking?.price && booking.price > 0 && ( <div className="flex items-center text-sm text-slate-600">
+                          <Coins className="h-4 w-4 mr-2" />
+                          {booking.price} LKR
+                        </div>)
+                        }
                       </div>
                       <div className="mt-4 pt-4 border-t border-slate-100">
                         <div className="flex items-center justify-between">

@@ -16,11 +16,13 @@ export async function POST(request: NextRequest) {
       UserID,
       bookerId,
       phoneNumber,
+      Price
     } = body;
 
 
 
-    
+
+      
 
     // Calculate duration in hours
     const start = new Date(startTime);
@@ -47,27 +49,6 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const startISO = new Date(start).toISOString();
-    const endISO = new Date(end).toISOString();
-
-    // Check for conflicts
-    // const conflictingBooking = await prisma.booking.findFirst({
-    //   where: {
-    //     boardroomId,
-    //     status: { in: ["confirmed", "pending"] },
-    //     AND: [
-    //       { startTime: { lt: endISO } },
-    //       { endTime: { gt: startISO } },
-    //     ],
-    //   },
-    // });
-
-    //     if (conflictingBooking) {
-    //       return NextResponse.json(
-    //         { error: "Time slot is already booked" },
-    //         { status: 400 }
-    //       );
-    //     }
 
     // Execute transaction without mixing different return types
     const result = await prisma.$transaction(async (tx) => {
@@ -84,7 +65,7 @@ export async function POST(request: NextRequest) {
           tokensUsed,
           UserID: UserID ?? "",
           isExsisting: isExistingUser ? true : false,
-
+          price: Price ?? "0",
           status: "pending",
           phoneNumber,
           booker: {
