@@ -160,13 +160,16 @@ export default function BookingsPage() {
 
         if (session?.user.role === "admin") {
           setBookings(data);
+          setIsLoading(false);
         } else {
           setBookings(filteredBookings);
+           setIsLoading(false);
         }
       }
     } catch (error) {
       console.error("Error fetching bookings:", error);
       toast.error("Failed to fetch bookings");
+       setIsLoading(false);
     }
   };
 
