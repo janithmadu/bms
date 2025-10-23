@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { Prisma } from "@prisma/client";
 
 export async function POST(request: NextRequest) {
   try {
@@ -46,7 +47,7 @@ export async function POST(request: NextRequest) {
 
     // ✅ OPTIMIZED TRANSACTION - INCREASE TIMEOUT TO 10s
     const result = await prisma.$transaction(
-      async (tx) => {
+      async (tx: Prisma.TransactionClient) => {
         // 1. Create booking FIRST (minimal data)
         const booking = await tx.booking.create({
           data: {

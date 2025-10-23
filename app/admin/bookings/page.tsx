@@ -36,11 +36,19 @@ import {
   Download,
   Loader2,
   Coins,
+  X,
 } from "lucide-react";
 import { format, isToday, isTomorrow, isYesterday, parse } from "date-fns";
 import { toast } from "sonner";
 import { BookingDialog } from "@/components/admin/booking-dialog";
 import { useSession } from "next-auth/react";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
 
 interface Booking {
   id: string;
@@ -55,7 +63,6 @@ interface Booking {
   endTime: string;
   duration: number;
   tokensUsed: number;
-  // Optional price in local currency (LKR)
   price?: number;
   phoneNumber: string;
   status: string;
@@ -100,7 +107,7 @@ const downloadCSV = (data: any[], headers: string[], filename: string) => {
   document.body.removeChild(link);
 };
 
-// Generate time options from 8:00 AM to 11:59 PM in 30-minute increments
+// Generate time options
 const generateTimeOptions = () => {
   const times = [];
   let hour = 8;
@@ -125,9 +132,7 @@ export default function BookingsPage() {
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [locations, setLocations] = useState<Location[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [selectedDate, setSelectedDate] = useState<Date | undefined>(
-    new Date()
-  );
+  const [selectedDate, setSelectedDate] = useState<Date | undefined>(undefined);
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedLocation, setSelectedLocation] = useState<string>("all");
   const [selectedStatus, setSelectedStatus] = useState<string>("all");
@@ -136,9 +141,8 @@ export default function BookingsPage() {
   const [selectedEndTime, setSelectedEndTime] = useState<string>("all");
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingBooking, setEditingBooking] = useState<Booking | null>(null);
-  const [loadingBookings, setLoadingBookings] = useState<{
-    [key: string]: boolean;
-  }>({});
+  const [isGlobalActionLoading, setIsGlobalActionLoading] = useState(false);
+  const [isFilterModalOpen, setIsFilterModalOpen] = useState(false);
 
   const { data: session } = useSession();
 
@@ -150,7 +154,6 @@ export default function BookingsPage() {
         const allowedLocationIds =
           session?.user?.userLocations?.map((loc) => loc.locationId) || [];
 
-        // Filter bookings based on user's locations
         const filteredBookings = data.filter((booking: any) =>
           allowedLocationIds.includes(booking.boardroom.locationId)
         );
@@ -172,13 +175,28 @@ export default function BookingsPage() {
       const response = await fetch(
         `/api/locations?userId=${session?.user.id}&role=${session?.user.role}`
       );
+      if (!response.ok) {
+        throw new Error("Failed to fetch locations");
+      }
       const data = await response.json();
+      console.log("Fetched locations:", data); // DEBUG LOG
       setLocations(Array.isArray(data) ? data : []);
     } catch (error) {
       console.error("Error fetching locations:", error);
       toast.error("Failed to fetch locations");
-    } finally {
-      setIsLoading(false);
+      setLocations([]); // Ensure empty array even on error
+    }
+  };
+
+  // **FIX 1: Wait for locations to load before opening modal**
+  const handleOpenFilterModal = () => {
+    if (locations.length === 0 && !isLoading) {
+      toast.info("Loading locations...");
+      fetchLocations().then(() => {
+        setIsFilterModalOpen(true);
+      });
+    } else {
+      setIsFilterModalOpen(true);
     }
   };
 
@@ -187,15 +205,12 @@ export default function BookingsPage() {
   }, [session?.user.id, session?.user.role]);
 
   const handleDelete = async (bookingId: string, UserID: string) => {
-    if (
-      !confirm(
-        "Are you sure you want to cancel this booking? Tokens will be refunded."
-      )
-    ) {
+    if (!confirm("Are you sure you want to cancel this booking? Tokens will be refunded.")) {
       return;
     }
 
-    setLoadingBookings((prev) => ({ ...prev, [bookingId]: true }));
+    setIsGlobalActionLoading(true);
+    
     try {
       const response = await fetch(`/api/admin/bookings/${bookingId}`, {
         method: "DELETE",
@@ -212,7 +227,7 @@ export default function BookingsPage() {
       console.error("Error cancelling booking:", error);
       toast.error("Failed to cancel booking");
     } finally {
-      setLoadingBookings((prev) => ({ ...prev, [bookingId]: false }));
+      setIsGlobalActionLoading(false);
     }
   };
 
@@ -231,24 +246,19 @@ export default function BookingsPage() {
     handleCloseDialog();
   };
 
-  const handleStatusChange = async (
-    bookingId: string,
-    UserID: string,
-    newStatus: string
-  ) => {
+  const handleStatusChange = async (bookingId: string, UserID: string, newStatus: string) => {
     const statusText = newStatus === "confirmed" ? "approve" : "cancel";
 
     if (!confirm(`Are you sure you want to ${statusText} this booking?`)) {
       return;
     }
 
-    setLoadingBookings((prev) => ({ ...prev, [bookingId]: true }));
+    setIsGlobalActionLoading(true);
+    
     try {
       const response = await fetch(`/api/admin/bookings/${bookingId}/status`, {
         method: "PUT",
-        headers: {
-          "Content-Type": "application/json",
-        },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ status: newStatus, UserID }),
       });
 
@@ -263,8 +273,19 @@ export default function BookingsPage() {
       console.error(`Error ${statusText}ing booking:`, error);
       toast.error(`Failed to ${statusText} booking`);
     } finally {
-      setLoadingBookings((prev) => ({ ...prev, [bookingId]: false }));
+      setIsGlobalActionLoading(false);
     }
+  };
+
+  const clearAllFilters = () => {
+    setSearchTerm("");
+    setSelectedDate(undefined);
+    setSelectedLocation("all");
+    setSelectedStatus("all");
+    setSelectedType("all");
+    setSelectedStartTime("all");
+    setSelectedEndTime("all");
+    toast.success("Filters cleared");
   };
 
   const getDateLabel = (dateString: string) => {
@@ -282,47 +303,22 @@ export default function BookingsPage() {
     }
 
     const headers = [
-      "ID",
-      "Event Title",
-      "Booker Name",
-      "Booker Email",
-      "Booker ID",
-      "User ID",
-      "Date",
-      "Start Time",
-      "End Time",
-      "Duration (mins)",
-      "Tokens Used",
-      "Phone Number",
-      "Status",
-      "Boardroom Name",
-      "Boardroom Capacity",
-      "Location Name",
-      "Location Address",
-      "Created At",
-      "Booking Type",
+      "ID", "Event Title", "Booker Name", "Booker Email", "Booker ID", "User ID",
+      "Date", "Start Time", "End Time", "Duration (mins)", "Tokens Used",
+      "Phone Number", "Status", "Boardroom Name", "Boardroom Capacity",
+      "Location Name", "Location Address", "Created At", "Booking Type"
     ];
 
     const csvData = filteredBookings.map((booking) => [
-      booking.id,
-      booking.eventTitle,
-      booking.bookerName,
-      booking.bookerEmail,
-      booking.bookerId,
-      booking.UserID,
-      booking.date,
+      booking.id, booking.eventTitle, booking.bookerName, booking.bookerEmail,
+      booking.bookerId, booking.UserID, booking.date,
       format(new Date(booking.startTime), "HH:mm"),
-      format(new Date(booking.endTime), "HH:mm"),
-      booking.duration,
-      booking.tokensUsed,
-      booking.phoneNumber,
-      booking.status,
-      booking.boardroom.name,
-      booking.boardroom.capacity,
-      booking.boardroom.location.name,
-      booking.boardroom.location.address,
+      format(new Date(booking.endTime), "HH:mm"), booking.duration,
+      booking.tokensUsed, booking.phoneNumber, booking.status,
+      booking.boardroom.name, booking.boardroom.capacity,
+      booking.boardroom.location.name, booking.boardroom.location.address,
       format(new Date(booking.createdAt), "yyyy-MM-dd HH:mm"),
-      booking.isExsisting ? "Internal" : "External",
+      booking.isExsisting ? "Internal" : "External"
     ]);
 
     const dateStr = format(new Date(), "yyyy-MM-dd");
@@ -330,107 +326,47 @@ export default function BookingsPage() {
     toast.success("CSV exported successfully");
   };
 
-  // Time filter logic
-  const isBookingInTimeRange = (
-    booking: Booking,
-    startTime: string,
-    endTime: string
-  ) => {
-    if (startTime === "all" && endTime === "all") return true;
-
-    const bookingStart = parse(
-      format(new Date(booking.startTime), "HH:mm"),
-      "HH:mm",
-      new Date()
-    );
-    const bookingEnd = parse(
-      format(new Date(booking.endTime), "HH:mm"),
-      "HH:mm",
-      new Date()
-    );
-
-    const start =
-      startTime !== "all"
-        ? parse(startTime, "hh:mm a", new Date())
-        : new Date(2025, 0, 1, 8, 0);
-    const end =
-      endTime !== "all"
-        ? parse(endTime, "hh:mm a", new Date())
-        : new Date(2025, 0, 1, 23, 59);
-
-    return (
-      bookingStart.getTime() >= start.getTime() &&
-      bookingEnd.getTime() <= end.getTime()
-    );
-  };
-
+  // **FIX 2: Updated filter logic**
   const filteredBookings = bookings.filter((booking) => {
-    const matchesSearch =
+    const matchesSearch = !searchTerm || 
       booking.eventTitle.toLowerCase().includes(searchTerm.toLowerCase()) ||
       booking.bookerName.toLowerCase().includes(searchTerm.toLowerCase()) ||
       booking.bookerEmail.toLowerCase().includes(searchTerm.toLowerCase()) ||
       booking.boardroom.name.toLowerCase().includes(searchTerm.toLowerCase());
 
-    const matchesLocation =
-      selectedLocation === "all" ||
+    const matchesLocation = selectedLocation === "all" || 
       booking.boardroom.location.id === selectedLocation;
 
-    const matchesType =
-      selectedType === "all" ||
-      booking.isExsisting === (selectedType === "internel" ? true : false);
+    const matchesType = selectedType === "all" || 
+      booking.isExsisting === (selectedType === "internel");
 
-    const matchesStatus =
-      selectedStatus === "all" || booking.status === selectedStatus;
+    const matchesStatus = selectedStatus === "all" || booking.status === selectedStatus;
 
-    const matchesDate =
-      !selectedDate ||
-      format(new Date(booking.date), "yyyy-MM-dd") ===
-        format(selectedDate, "yyyy-MM-dd");
+    const matchesDate = !selectedDate || 
+      format(new Date(booking.date), "yyyy-MM-dd") === format(selectedDate, "yyyy-MM-dd");
 
-    const matchesTimeRange = isBookingInTimeRange(
-      booking,
-      selectedStartTime,
-      selectedEndTime
-    );
+    const matchesTimeRange = (startTime: string, endTime: string) => {
+      if (startTime === "all" && endTime === "all") return true;
 
-    return (
-      matchesSearch &&
-      matchesLocation &&
-      matchesStatus &&
-      matchesDate &&
-      matchesType &&
-      matchesTimeRange
-    );
+      const bookingStart = parse(format(new Date(booking.startTime), "HH:mm"), "HH:mm", new Date());
+      const bookingEnd = parse(format(new Date(booking.endTime), "HH:mm"), "HH:mm", new Date());
+
+      const start = startTime !== "all" ? parse(startTime, "hh:mm a", new Date()) : new Date(2025, 0, 1, 8, 0);
+      const end = endTime !== "all" ? parse(endTime, "hh:mm a", new Date()) : new Date(2025, 0, 1, 23, 59);
+
+      return bookingStart.getTime() >= start.getTime() && bookingEnd.getTime() <= end.getTime();
+    };
+
+    return matchesSearch && matchesLocation && matchesStatus && matchesDate && 
+           matchesType && matchesTimeRange(selectedStartTime, selectedEndTime);
   });
 
   if (isLoading) {
     return (
       <div className="space-y-6">
         <PageHeader title="Bookings" description="Manage all room bookings" />
-        <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
-          <div className="lg:col-span-1">
-            <Card className="animate-pulse">
-              <CardHeader>
-                <div className="h-6 bg-slate-200 rounded w-3/4"></div>
-              </CardHeader>
-              <CardContent>
-                <div className="h-64 bg-slate-200 rounded"></div>
-              </CardContent>
-            </Card>
-          </div>
-          <div className="lg:col-span-3 space-y-4">
-            {[1, 2, 3].map((i) => (
-              <Card key={i} className="animate-pulse">
-                <CardHeader>
-                  <div className="h-6 bg-slate-200 rounded w-1/2"></div>
-                  <div className="h-4 bg-slate-200 rounded w-1/3"></div>
-                </CardHeader>
-                <CardContent>
-                  <div className="h-16 bg-slate-200 rounded"></div>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
+        <div className="flex justify-center py-12">
+          <Loader2 className="h-8 w-8 animate-spin text-blue-500" />
         </div>
       </div>
     );
@@ -438,23 +374,197 @@ export default function BookingsPage() {
 
   return (
     <>
+      {isGlobalActionLoading && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+          <div className="bg-white p-6 rounded-lg shadow-lg flex items-center space-x-4">
+            <Loader2 className="h-8 w-8 animate-spin text-blue-500" />
+            <span className="text-lg font-medium">Processing action...</span>
+          </div>
+        </div>
+      )}
+
       <div className="space-y-6">
-        <PageHeader
-          title="Bookings Management"
-          description="View and manage all room bookings across locations"
-        >
+        <PageHeader title="Bookings Management" description="View and manage all room bookings across locations">
           <div className="flex gap-2">
             <Button
               variant="outline"
               onClick={exportToCSV}
-              disabled={filteredBookings.length === 0}
+              disabled={filteredBookings.length === 0 || isGlobalActionLoading}
             >
               <Download className="h-4 w-4 mr-2" />
               Export CSV
             </Button>
+            
+            {/* **FIXED: Filter Modal Trigger */}
+            <Dialog open={isFilterModalOpen} onOpenChange={setIsFilterModalOpen}>
+              <DialogTrigger asChild>
+                <Button
+                  variant="outline"
+                  onClick={handleOpenFilterModal}
+                  disabled={isGlobalActionLoading}
+                  className="bg-blue-50 hover:bg-blue-100 border-blue-200"
+                >
+                  <Filter className="h-4 w-4 mr-2" />
+                  Filters
+                  {filteredBookings.length !== bookings.length && (
+                    <Badge variant="secondary" className="ml-1 h-5 w-5 p-0">
+                      {filteredBookings.length}
+                    </Badge>
+                  )}
+                </Button>
+              </DialogTrigger>
+              
+              <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+                <DialogHeader>
+                  <DialogTitle className="flex items-center justify-between">
+                    <span>Filter Bookings</span>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setIsFilterModalOpen(false)}
+                    >
+                      <X className="h-4 w-4" />
+                    </Button>
+                  </DialogTitle>
+                </DialogHeader>
+                
+                <div className="space-y-6">
+                  {/* Search */}
+                  <div className="grid gap-2">
+                    <Label htmlFor="search">Search</Label>
+                    <div className="relative">
+                      <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-slate-400" />
+                      <Input
+                        id="search"
+                        placeholder="Search by title, name, email, or room..."
+                        value={searchTerm}
+                        onChange={(e) => setSearchTerm(e.target.value)}
+                        className="pl-10"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-6">
+                    {/* Date Picker */}
+                    <div className="space-y-2">
+                      <Label>Date</Label>
+                      <Calendar
+                        mode="single"
+                        selected={selectedDate}
+                        onSelect={setSelectedDate}
+                        className="rounded-md border w-full"
+                      />
+                      {selectedDate && (
+                        <p className="text-sm text-slate-500">
+                          {format(selectedDate, "MMMM d, yyyy")}
+                        </p>
+                      )}
+                    </div>
+
+                    {/* **FIX 3: Location Filter - Now Properly Rendered */}
+                    <div className="space-y-2">
+                      <Label>Location</Label>
+                      <Select value={selectedLocation} onValueChange={setSelectedLocation}>
+                        <SelectTrigger>
+                          <SelectValue placeholder="All locations" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="all">All Locations ({locations.length})</SelectItem>
+                          {locations.length > 0 ? (
+                            locations.map((location) => (
+                              <SelectItem key={location.id} value={location.id}>
+                                {location.name}
+                              </SelectItem>
+                            ))
+                          ) : (
+                            <SelectItem value="no-locations" disabled className="text-slate-400">
+                              No locations available
+                            </SelectItem>
+                          )}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-6">
+                    <div className="space-y-2">
+                      <Label>Status</Label>
+                      <Select value={selectedStatus} onValueChange={setSelectedStatus}>
+                        <SelectTrigger>
+                          <SelectValue placeholder="All statuses" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="all">All Statuses</SelectItem>
+                          <SelectItem value="confirmed">Confirmed</SelectItem>
+                          <SelectItem value="cancelled">Cancelled</SelectItem>
+                          <SelectItem value="pending">Pending</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label>Booking Type</Label>
+                      <Select value={selectedType} onValueChange={setSelectedType}>
+                        <SelectTrigger>
+                          <SelectValue placeholder="All types" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="all">All Types</SelectItem>
+                          <SelectItem value="external">External</SelectItem>
+                          <SelectItem value="internel">Internal</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-6">
+                    <div className="space-y-2">
+                      <Label>Start Time</Label>
+                      <Select value={selectedStartTime} onValueChange={setSelectedStartTime}>
+                        <SelectTrigger>
+                          <SelectValue placeholder="All start times" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="all">All Start Times</SelectItem>
+                          {timeOptions.map((time) => (
+                            <SelectItem key={time} value={time}>{time}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label>End Time</Label>
+                      <Select value={selectedEndTime} onValueChange={setSelectedEndTime}>
+                        <SelectTrigger>
+                          <SelectValue placeholder="All end times" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="all">All End Times</SelectItem>
+                          {timeOptions.map((time) => (
+                            <SelectItem key={time} value={time}>{time}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+
+                  <div className="flex justify-end space-x-2 pt-4">
+                    <Button variant="outline" type="button" onClick={clearAllFilters}>
+                      Clear All
+                    </Button>
+                    <Button type="button" onClick={() => setIsFilterModalOpen(false)}>
+                      Apply Filters
+                    </Button>
+                  </div>
+                </div>
+              </DialogContent>
+            </Dialog>
+
             <Button
               onClick={() => setIsDialogOpen(true)}
               className="bg-blue-600 hover:bg-blue-700"
+              disabled={isGlobalActionLoading}
             >
               <Plus className="h-4 w-4 mr-2" />
               New Booking
@@ -462,382 +572,154 @@ export default function BookingsPage() {
           </div>
         </PageHeader>
 
-        <div className="grid grid-cols-1 2xl:grid-cols-4 gap-6">
-          {/* Sidebar - Filters and Calendar */}
-          <div className="lg:col-span-1 space-y-6">
-            {/* Calendar */}
+        <div className="lg:col-span-4">
+          {filteredBookings.length === 0 ? (
             <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center">
-                  <CalendarIcon className="h-5 w-5 mr-2" />
-                  Filter by Date
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="flex justify-center">
-                  <Calendar
-                    mode="single"
-                    selected={selectedDate}
-                    onSelect={setSelectedDate}
-                    className="w-full max-w-[300px] rounded-md border"
-                  />
-                </div>
+              <CardContent className="flex flex-col items-center justify-center py-16">
+                <CalendarIcon className="h-16 w-16 text-slate-300 mb-4" />
+                <h3 className="text-xl font-semibold text-slate-600 mb-2">No bookings found</h3>
+                <p className="text-slate-500 text-center mb-6">
+                  {searchTerm || selectedDate || selectedLocation !== "all" || selectedStatus !== "all"
+                    ? "Try adjusting your filters to see more results."
+                    : "No bookings have been made yet."}
+                </p>
                 <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setSelectedDate(undefined)}
-                  className="w-full mt-2"
+                  onClick={() => setIsDialogOpen(true)}
+                  className="bg-blue-600 hover:bg-blue-700"
+                  disabled={isGlobalActionLoading}
                 >
-                  Clear Date Filter
+                  <Plus className="h-4 w-4 mr-2" />
+                  Create First Booking
                 </Button>
               </CardContent>
             </Card>
+          ) : (
+            <div className="space-y-4">
+              <p className="text-sm text-slate-600">
+                Showing {filteredBookings.length} of {bookings.length} booking
+                {filteredBookings.length !== 1 ? "s" : ""}
+                {selectedDate && ` for ${format(selectedDate, "MMMM d, yyyy")}`}
+              </p>
 
-            {/* Filters */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center">
-                  <Filter className="h-5 w-5 mr-2" />
-                  Filters
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="grid gap-2">
-                  <Label htmlFor="search">Search</Label>
-                  <div className="relative">
-                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-slate-400" />
-                    <Input
-                      id="search"
-                      placeholder="Search bookings..."
-                      value={searchTerm}
-                      onChange={(e) => setSearchTerm(e.target.value)}
-                      className="pl-10"
-                    />
-                  </div>
-                </div>
-
-                <div className="grid gap-2">
-                  <Label>Location</Label>
-                  <Select
-                    value={selectedLocation}
-                    onValueChange={setSelectedLocation}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="All locations" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">All Locations</SelectItem>
-                      {locations.map((location) => (
-                        <SelectItem key={location.id} value={location.id}>
-                          {location.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div className="grid gap-2">
-                  <Label>Status</Label>
-                  <Select
-                    value={selectedStatus}
-                    onValueChange={setSelectedStatus}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="All statuses" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">All Statuses</SelectItem>
-                      <SelectItem value="confirmed">Confirmed</SelectItem>
-                      <SelectItem value="cancelled">Cancelled</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div className="grid gap-2">
-                  <Label>Booking Type</Label>
-                  <Select value={selectedType} onValueChange={setSelectedType}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Booking Type" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">All Types</SelectItem>
-                      <SelectItem value="external">External</SelectItem>
-                      <SelectItem value="internel">Internal</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div className="grid gap-2">
-                  <Label>Start Time</Label>
-                  <Select
-                    value={selectedStartTime}
-                    onValueChange={setSelectedStartTime}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="All start times" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">All Start Times</SelectItem>
-                      {timeOptions.map((time) => (
-                        <SelectItem key={time} value={time}>
-                          {time}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div className="grid gap-2">
-                  <Label>End Time</Label>
-                  <Select
-                    value={selectedEndTime}
-                    onValueChange={setSelectedEndTime}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="All end times" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">All End Times</SelectItem>
-                      {timeOptions.map((time) => (
-                        <SelectItem key={time} value={time}>
-                          {time}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-
-          {/* Main Content - Bookings List */}
-          <div className="col-span-3">
-            {filteredBookings.length === 0 ? (
-              <Card className="">
-                <CardContent className="flex flex-col items-center justify-center py-16">
-                  <CalendarIcon className="h-16 w-16 text-slate-300 mb-4" />
-                  <h3 className="text-xl font-semibold text-slate-600 mb-2">
-                    No bookings found
-                  </h3>
-                  <p className="text-slate-500 text-center mb-6">
-                    {selectedDate ||
-                    searchTerm ||
-                    selectedLocation !== "all" ||
-                    selectedStatus !== "all" ||
-                    selectedStartTime !== "all" ||
-                    selectedEndTime !== "all"
-                      ? "Try adjusting your filters to see more results."
-                      : "No bookings have been made yet."}
-                  </p>
-                  <Button
-                    onClick={() => setIsDialogOpen(true)}
-                    className="bg-blue-600 hover:bg-blue-700"
-                  >
-                    <Plus className="h-4 w-4 mr-2" />
-                    Create First Booking
-                  </Button>
-                </CardContent>
-              </Card>
-            ) : (
-              <div className="space-y-4">
-                <div className="flex items-center justify-between">
-                  <p className="text-sm text-slate-600">
-                    Showing {filteredBookings.length} booking
-                    {filteredBookings.length !== 1 ? "s" : ""}
-                    {selectedDate &&
-                      ` for ${format(selectedDate, "MMMM d, yyyy")}`}
-                  </p>
-                </div>
-
-                {filteredBookings.map((booking) => (
-                  <Card
-                    key={booking.id}
-                    className="hover:shadow-md transition-shadow relative"
-                  >
-                    {loadingBookings[booking.id] && (
-                      <div className="absolute inset-0 bg-white/50 flex items-center justify-center z-10">
-                        <Loader2 className="h-8 w-8 animate-spin text-blue-500" />
+              {filteredBookings.map((booking) => (
+                <Card key={booking.id} className="hover:shadow-md transition-shadow">
+                  <CardHeader>
+                    <div className="flex items-start justify-between">
+                      <div>
+                        <CardTitle className="text-lg">{booking.eventTitle}</CardTitle>
+                        <CardDescription className="flex items-center mt-1">
+                          <MapPin className="h-4 w-4 mr-1" />
+                          {booking.boardroom.location.name} - {booking.boardroom.name}
+                        </CardDescription>
                       </div>
-                    )}
-                    <CardHeader>
-                      <div className="flex items-start justify-between">
-                        <div>
-                          <CardTitle className="text-lg">
-                            {booking.eventTitle}
-                          </CardTitle>
-                          <CardDescription className="flex items-center mt-1">
-                            <MapPin className="h-4 w-4 mr-1" />
-                            {booking.boardroom.location.name} -{" "}
-                            {booking.boardroom.name}
-                          </CardDescription>
-                        </div>
-                        <div className="flex items-center space-x-2">
-                          <Badge
-                            variant={
-                              booking.status === "confirmed"
-                                ? "default"
-                                : booking.status === "pending"
-                                ? "secondary"
-                                : "destructive"
-                            }
-                          >
-                            {booking.status}
-                          </Badge>
+                      <div className="flex items-center space-x-2">
+                        <Badge variant={
+                          booking.status === "confirmed" ? "default" :
+                          booking.status === "pending" ? "secondary" : "destructive"
+                        }>
+                          {booking.status}
+                        </Badge>
 
-                          {/* Status Change Buttons */}
-                          {booking.status === "pending" && (
-                            <div className="flex space-x-1">
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={() =>
-                                  handleStatusChange(
-                                    booking.id,
-                                    booking.UserID,
-                                    "confirmed"
-                                  )
-                                }
-                                className="bg-green-50 hover:bg-green-100 text-green-700 border-green-200"
-                                disabled={
-                                  loadingBookings[booking.id] || // Disable if loading
-                                  (session?.user.role !== "admin" &&
-                                    session?.user.role !== "manager" && // If not admin or manager
-                                    booking.UserID !== session?.user.id) // and user ID doesn't match
-                                }
-                              >
-                                Approve
-                              </Button>
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={() =>
-                                  handleStatusChange(
-                                    booking.id,
-                                    booking.UserID,
-                                    "cancelled"
-                                  )
-                                }
-                                className="bg-red-50 hover:bg-red-100 text-red-700 border-red-200"
-                                disabled={
-                                  loadingBookings[booking.id] || // Disable if loading
-                                  (session?.user.role !== "admin" &&
-                                    session?.user.role !== "manager" && // If not admin or manager
-                                    booking.UserID !== session?.user.id) // and user ID doesn't match
-                                }
-                              >
-                                Reject
-                              </Button>
-                            </div>
-                          )}
-
-                          {booking.status === "confirmed" && (
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() =>
-                                handleStatusChange(
-                                  booking.id,
-                                  booking.UserID,
-                                  "cancelled"
-                                )
-                              }
-                              className="bg-red-50 hover:bg-red-100 text-red-700 border-red-200"
-                              disabled={loadingBookings[booking.id]}
-                            >
-                              Cancel
-                            </Button>
-                          )}
-
+                        {booking.status === "pending" && (
                           <div className="flex space-x-1">
                             <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => handleEdit(booking)}
-                              disabled={loadingBookings[booking.id]}
+                              variant="outline" size="sm"
+                              onClick={() => handleStatusChange(booking.id, booking.UserID, "confirmed")}
+                              className="bg-green-50 hover:bg-green-100 text-green-700 border-green-200"
+                              disabled={isGlobalActionLoading}
                             >
-                              <Edit className="h-4 w-4" />
+                              Approve
                             </Button>
-
                             <Button
-                              variant="ghost"
-                              size="sm"
-                              disabled={
-                                booking.status !== "cancelled" ||
-                                loadingBookings[booking.id]
-                              }
-                              onClick={() =>
-                                handleDelete(booking.id, booking.UserID)
-                              }
+                              variant="outline" size="sm"
+                              onClick={() => handleStatusChange(booking.id, booking.UserID, "cancelled")}
+                              className="bg-red-50 hover:bg-red-100 text-red-700 border-red-200"
+                              disabled={isGlobalActionLoading}
                             >
-                              <Trash2 className="h-4 w-4" />
+                              Reject
                             </Button>
                           </div>
+                        )}
+
+                        {booking.status === "confirmed" && (
+                          <Button
+                            variant="outline" size="sm"
+                            onClick={() => handleStatusChange(booking.id, booking.UserID, "cancelled")}
+                            className="bg-red-50 hover:bg-red-100 text-red-700 border-red-200"
+                            disabled={isGlobalActionLoading}
+                          >
+                            Cancel
+                          </Button>
+                        )}
+
+                        <div className="flex space-x-1">
+                          <Button variant="ghost" size="sm" onClick={() => handleEdit(booking)} disabled={isGlobalActionLoading}>
+                            <Edit className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            variant="ghost" size="sm"
+                            disabled={booking.status !== "cancelled" || isGlobalActionLoading}
+                            onClick={() => handleDelete(booking.id, booking.UserID)}
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
                         </div>
                       </div>
-                    </CardHeader>
-                    <CardContent>
-                      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                    </div>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                      <div className="flex items-center text-sm text-slate-600">
+                        <CalendarIcon className="h-4 w-4 mr-2" />
+                        {getDateLabel(booking.date)}
+                      </div>
+                      <div className="flex items-center text-sm text-slate-600">
+                        <Clock className="h-4 w-4 mr-2" />
+                        {format(new Date(booking.startTime), "HH:mm")} - {format(new Date(booking.endTime), "HH:mm")}
+                      </div>
+                      <div className="flex items-center text-sm text-slate-600">
+                        <Users className="h-4 w-4 mr-2" />
+                        {booking.boardroom.capacity} capacity
+                      </div>
+                      {booking?.price && booking.price > 0 && (
                         <div className="flex items-center text-sm text-slate-600">
-                          <CalendarIcon className="h-4 w-4 mr-2" />
-                          {getDateLabel(booking.date)}
-                        </div>
-                        <div className="flex items-center text-sm text-slate-600">
-                          <Clock className="h-4 w-4 mr-2" />
-                          {format(new Date(booking.startTime), "HH:mm")} -{" "}
-                          {format(new Date(booking.endTime), "HH:mm")}
-                        </div>
-                        <div className="flex items-center text-sm text-slate-600">
-                          <Users className="h-4 w-4 mr-2" />
-                          {booking.boardroom.capacity} capacity
-                        </div>
-                        {
-                          booking?.price && booking.price > 0 && ( <div className="flex items-center text-sm text-slate-600">
                           <Coins className="h-4 w-4 mr-2" />
                           {booking.price} LKR
-                        </div>)
-                        }
-                      </div>
-                      <div className="mt-4 pt-4 border-t border-slate-100">
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center text-sm text-slate-600">
-                            <Mail className="h-4 w-4 mr-2" />
-                            {booking.bookerName} ({booking.bookerEmail})
-                          </div>
-
-                          <div className="flex items-center text-sm text-slate-600">
-                            <Phone className="h-4 w-4 mr-2" />(
-                            {booking.phoneNumber})
-                          </div>
-                          <div className="text-sm text-slate-500">
-                            {booking.isExsisting ? (
-                              <>
-                                {booking.tokensUsed} token
-                                {booking.tokensUsed !== 1 ? "s" : ""} used
-                              </>
-                            ) : (
-                              "External Booking"
-                            )}
-                          </div>
                         </div>
-                        <div className="flex items-center justify-between mt-2">
-                          <div className="text-xs text-slate-400">
-                            Booker ID: {booking.bookerId}
-                          </div>
-                          <div className="text-xs text-slate-400">
-                            {booking.isExsisting ? (
-                              <> User ID: {booking.UserID}</>
-                            ) : (
-                              <></>
-                            )}
-                          </div>
+                      )}
+                    </div>
+                    <div className="mt-4 pt-4 border-t border-slate-100">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center text-sm text-slate-600">
+                          <Mail className="h-4 w-4 mr-2" />
+                          {booking.bookerName} ({booking.bookerEmail})
+                        </div>
+                        <div className="flex items-center text-sm text-slate-600">
+                          <Phone className="h-4 w-4 mr-2" />
+                          {booking.phoneNumber}
+                        </div>
+                        <div className="text-sm text-slate-500">
+                          {booking.isExsisting ? (
+                            <>
+                              {booking.tokensUsed} token{booking.tokensUsed !== 1 ? "s" : ""} used
+                            </>
+                          ) : (
+                            "External Booking"
+                          )}
                         </div>
                       </div>
-                    </CardContent>
-                  </Card>
-                ))}
-              </div>
-            )}
-          </div>
+                      <div className="flex items-center justify-between mt-2">
+                        <div className="text-xs text-slate-400">Booker ID: {booking.bookerId}</div>
+                        {booking.isExsisting && (
+                          <div className="text-xs text-slate-400">User ID: {booking.UserID}</div>
+                        )}
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          )}
         </div>
       </div>
 

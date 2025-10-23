@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
+import { Prisma } from "@prisma/client";
 
 export async function PUT(
   request: NextRequest,
@@ -84,7 +85,7 @@ export async function PUT(
     }
 
     // Update booking and adjust tokens
-    const result = await prisma.$transaction([
+    const result = ([
       prisma.booking.update({
         where: { id: params.id },
         data: {
@@ -155,7 +156,7 @@ export async function DELETE(
     }
 
     // Cancel booking and refund tokens
-    await prisma.$transaction(async (tx) => {
+    await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
       await tx.booking.delete({
         where: { id: params.id },
       });

@@ -3,6 +3,7 @@ import { prisma } from '@/lib/prisma'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import bcrypt from 'bcryptjs'
+import { Prisma } from '@prisma/client'
 
 export async function PUT(
   request: NextRequest,
@@ -54,7 +55,7 @@ export async function PUT(
     }
 
     // Update user and location assignments in a transaction
-    const user = await prisma.$transaction(async (tx) => {
+    const user = await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
       // Update user basic info
       const updatedUser = await tx.user.update({
         where: { id: params.id },
