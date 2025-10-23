@@ -10,6 +10,8 @@ RUN npm ci --legacy-peer-deps
 # Copy project files
 COPY . .
 
+RUN npx prisma generate
+
 ENV SKIP_ENV_VALIDATION=true
 ENV NEXT_DISABLE_ESLINT=1
 ENV NEXT_TELEMETRY_DISABLED=1
