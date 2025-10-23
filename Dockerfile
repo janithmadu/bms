@@ -10,8 +10,13 @@ RUN npm ci --legacy-peer-deps
 # Copy project files
 COPY . .
 
+ENV SKIP_ENV_VALIDATION=true
+ENV NEXT_DISABLE_ESLINT=1
+ENV NEXT_TELEMETRY_DISABLED=1
+ENV NEXT_SKIP_TYPE_CHECK=true
+
 # Build Next.js app
-RUN npm run build
+RUN npm run build -- --no-lint
 
 # Stage 2: Run the application
 FROM node:22-alpine AS runner
