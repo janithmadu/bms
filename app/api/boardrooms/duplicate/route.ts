@@ -43,8 +43,8 @@ export async function POST(request: NextRequest) {
         capacity: originalBoardroom.capacity,
         imageUrl: originalBoardroom.imageUrl,
         // Convert JsonValue to InputJsonValue
-        facilities: originalBoardroom.facilities as Prisma.InputJsonValue,
-        pricingOptions: originalBoardroom.pricingOptions as Prisma.InputJsonValue,
+        facilities: JSON.parse(JSON.stringify(originalBoardroom.facilities)),
+        pricingOptions: JSON.parse(JSON.stringify(originalBoardroom.pricingOptions)),
         locationId: locationId,
         createdAt: new Date(),
         updatedAt: new Date(),
