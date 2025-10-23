@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
+import { User } from '@prisma/client';
 
 // Define the initial count value for token renewal
 const INITIAL_COUNT = 1000; // Replace 1000 with your desired initial count
@@ -20,7 +21,7 @@ export async function POST(request: NextRequest) {
     const users = await prisma.user.findMany()
 
 
-    users.forEach(async (user) => {
+    users.forEach(async (user:User) => {
       await prisma.user.update({
         where: { id: user.id },
         data: { tokenLimit: user.tokenLimit, tokensUsed: 0, tokensAvailable: user.tokenLimit }
