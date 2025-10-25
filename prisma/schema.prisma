@@ -145,7 +145,7 @@ model Booking {
   status      String    @default("pending") // pending, confirmed, cancelled
   boardroomId String
   boardroom   Boardroom @relation(fields: [boardroomId], references: [id], onDelete: Cascade)
-  UserID String @default("") @db.VarChar(5)
+  UserID String @default("") @db.VarChar(100)
   // Relation with User
   bookerId    String  @default("7Wcpw") @db.VarChar(5)
   booker      User      @relation(fields: [bookerId], references: [id], onDelete: Cascade) 
@@ -154,6 +154,7 @@ model Booking {
   updatedAt   DateTime  @updatedAt
   phoneNumber String    @default("")
   price       String     @default("")
+  useName     String @default("") @db.VarChar(100)
   @@index([boardroomId])
   @@index([date])
   @@index([startTime, endTime])

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { Prisma } from "@prisma/client";
+import { Prisma, User } from "@prisma/client";
 
 export async function POST(request: NextRequest) {
   try {
@@ -17,7 +17,7 @@ export async function POST(request: NextRequest) {
       UserID,
       bookerId,
       phoneNumber,
-      Price
+      Price,
     } = body;
 
     // Calculate duration in hours

@@ -38,7 +38,14 @@ import {
   Coins,
   X,
 } from "lucide-react";
-import { format, isToday, isTomorrow, isYesterday, parse } from "date-fns";
+import {
+  format,
+  isToday,
+  parse,
+  isWithinInterval,
+  startOfMinute,
+  addMinutes,
+} from "date-fns";
 import { toast } from "sonner";
 import { BookingDialog } from "@/components/admin/booking-dialog";
 import { useSession } from "next-auth/react";
@@ -49,7 +56,9 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
+import { User } from "@prisma/client";
 
+// Define interfaces
 interface Booking {
   id: string;
   eventTitle: string;
@@ -85,6 +94,12 @@ interface Location {
   boardrooms: { id: string; name: string }[];
 }
 
+interface TimeSlot {
+  startTime: string;
+  endTime: string;
+  isAvailable: boolean;
+}
+
 // Utility function to download CSV
 const downloadCSV = (data: any[], headers: string[], filename: string) => {
   const csvContent = [
@@ -107,7 +122,7 @@ const downloadCSV = (data: any[], headers: string[], filename: string) => {
   document.body.removeChild(link);
 };
 
-// Generate time options
+// Generate time options (for reference, not directly used here)
 const generateTimeOptions = () => {
   const times = [];
   let hour = 8;
@@ -132,18 +147,23 @@ export default function BookingsPage() {
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [locations, setLocations] = useState<Location[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [selectedDate, setSelectedDate] = useState<Date | undefined>(undefined);
+  const [selectedDate, setSelectedDate] = useState<Date | undefined>(
+    new Date()
+  );
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedLocation, setSelectedLocation] = useState<string>("all");
+  const [selectedBoardroom, setSelectedBoardroom] = useState<string>("all");
   const [selectedStatus, setSelectedStatus] = useState<string>("all");
   const [selectedType, setSelectedType] = useState<string>("all");
   const [selectedStartTime, setSelectedStartTime] = useState<string>("all");
   const [selectedEndTime, setSelectedEndTime] = useState<string>("all");
+  const [availableSlots, setAvailableSlots] = useState<TimeSlot[]>([]);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingBooking, setEditingBooking] = useState<Booking | null>(null);
   const [isGlobalActionLoading, setIsGlobalActionLoading] = useState(false);
   const [isFilterModalOpen, setIsFilterModalOpen] = useState(false);
-
+  const [isLoadingSlots, setIsLoadingSlots] = useState(false);
+  const [users, setUsers] = useState<User[]>([]);
   const { data: session } = useSession();
 
   const fetchBookings = async () => {
@@ -154,22 +174,41 @@ export default function BookingsPage() {
         const allowedLocationIds =
           session?.user?.userLocations?.map((loc) => loc.locationId) || [];
 
-        const filteredBookings = data.filter((booking: any) =>
-          allowedLocationIds.includes(booking.boardroom.locationId)
+        const filteredBookings = data.filter((booking: Booking) =>
+          allowedLocationIds.includes(booking.boardroom.location.id)
         );
 
         if (session?.user.role === "admin") {
           setBookings(data);
-          setIsLoading(false);
         } else {
           setBookings(filteredBookings);
-           setIsLoading(false);
         }
       }
+      setIsLoading(false);
     } catch (error) {
       console.error("Error fetching bookings:", error);
       toast.error("Failed to fetch bookings");
-       setIsLoading(false);
+      setIsLoading(false);
+    }
+  };
+
+  const fetchUsers = async () => {
+    try {
+      const response = await fetch("/api/admin/users");
+      if (response.ok) {
+        const data = await response.json();
+        setUsers(data);
+      }
+
+      if (response.status === 401) {
+        const data = await response.json();
+        toast.error(data.error);
+      }
+    } catch (error) {
+      console.error("Error fetching users:", error);
+      toast.error("Failed to fetch users");
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -182,38 +221,136 @@ export default function BookingsPage() {
         throw new Error("Failed to fetch locations");
       }
       const data = await response.json();
-      console.log("Fetched locations:", data); // DEBUG LOG
       setLocations(Array.isArray(data) ? data : []);
     } catch (error) {
       console.error("Error fetching locations:", error);
       toast.error("Failed to fetch locations");
-      setLocations([]); // Ensure empty array even on error
+      setLocations([]);
     }
   };
 
-  // **FIX 1: Wait for locations to load before opening modal**
-  const handleOpenFilterModal = () => {
-    if (locations.length === 0 && !isLoading) {
-      toast.info("Loading locations...");
-      fetchLocations().then(() => {
-        setIsFilterModalOpen(true);
+  const fetchAvailableSlots = async () => {
+    if (
+      !selectedDate ||
+      selectedLocation === "all" ||
+      selectedBoardroom === "all"
+    ) {
+      setAvailableSlots([]);
+      return;
+    }
+
+    setIsLoadingSlots(true);
+    try {
+      // Get current time, rounded to the next 30-minute interval for today
+      const now = new Date();
+      const minutes = now.getMinutes();
+      const roundedMinutes = minutes < 30 ? 30 : 60;
+      const currentTime = addMinutes(
+        startOfMinute(now),
+        roundedMinutes - minutes
+      );
+
+      // Define day boundaries
+      const dayStart = new Date(selectedDate);
+      dayStart.setHours(0, 0, 0, 0);
+      const dayEnd = new Date(selectedDate);
+      dayEnd.setHours(23, 59, 59, 999);
+
+      // Determine the earliest start time based on current time or day start
+      const earliestStartTime = isToday(selectedDate)
+        ? addMinutes(startOfMinute(new Date()), roundedMinutes - minutes)
+        : dayStart;
+
+      // Get bookings for the selected boardroom and date
+      const boardroomBookings = bookings.filter(
+        (booking) =>
+          booking.boardroom.id === selectedBoardroom &&
+          format(new Date(booking.date), "yyyy-MM-dd") ===
+            format(selectedDate, "yyyy-MM-dd")
+      );
+
+      // Find the latest end time of existing bookings
+      const latestEndTime = boardroomBookings.reduce((latest, booking) => {
+        const bookingEnd = new Date(booking.endTime);
+        return bookingEnd > latest ? bookingEnd : latest;
+      }, earliestStartTime);
+
+      // Generate 30-minute slots starting from the latest end time or earliest start time
+      const allSlots: TimeSlot[] = [];
+      let currentTimeSlot = new Date(latestEndTime);
+
+      // Ensure the start time is aligned to the nearest 30-minute interval
+      if (
+        currentTimeSlot.getMinutes() !== 0 &&
+        currentTimeSlot.getMinutes() !== 30
+      ) {
+        const minutesToNextSlot =
+          currentTimeSlot.getMinutes() < 30
+            ? 30 - currentTimeSlot.getMinutes()
+            : 60 - currentTimeSlot.getMinutes();
+        currentTimeSlot = addMinutes(currentTimeSlot, minutesToNextSlot);
+      }
+
+      // Generate slots until the end of the day
+      while (currentTimeSlot < dayEnd) {
+        const slotStart = new Date(currentTimeSlot);
+        const slotEnd = new Date(currentTimeSlot.getTime() + 30 * 60 * 1000);
+
+        allSlots.push({
+          startTime: format(slotStart, "hh:mm a"),
+          endTime: format(slotEnd, "hh:mm a"),
+          isAvailable: true,
+        });
+        currentTimeSlot = slotEnd;
+      }
+
+      // Filter out booked slots
+      const available = allSlots.map((slot) => {
+        const slotStart = parse(slot.startTime, "hh:mm a", selectedDate);
+        const slotEnd = parse(slot.endTime, "hh:mm a", selectedDate);
+        const isBooked = boardroomBookings.some(
+          (booking) =>
+            isWithinInterval(slotStart, {
+              start: new Date(booking.startTime),
+              end: new Date(booking.endTime),
+            }) ||
+            isWithinInterval(slotEnd, {
+              start: new Date(booking.startTime),
+              end: new Date(booking.endTime),
+            }) ||
+            (new Date(booking.startTime) <= slotStart &&
+              new Date(booking.endTime) >= slotEnd)
+        );
+        return { ...slot, isAvailable: !isBooked };
       });
-    } else {
-      setIsFilterModalOpen(true);
+
+      setAvailableSlots(available);
+    } catch (error) {
+      console.error("Error fetching available slots:", error);
+      setAvailableSlots([]);
+    } finally {
+      setIsLoadingSlots(false);
     }
   };
 
   useEffect(() => {
-    Promise.all([fetchBookings(), fetchLocations()]);
+    Promise.all([fetchBookings(), fetchLocations(), fetchUsers()]);
   }, [session?.user.id, session?.user.role]);
 
+  useEffect(() => {
+    fetchAvailableSlots();
+  }, [selectedDate, selectedLocation, selectedBoardroom]);
+
   const handleDelete = async (bookingId: string, UserID: string) => {
-    if (!confirm("Are you sure you want to cancel this booking? Tokens will be refunded.")) {
+    if (
+      !confirm(
+        "Are you sure you want to cancel this booking? Tokens will be refunded."
+      )
+    ) {
       return;
     }
 
     setIsGlobalActionLoading(true);
-    
     try {
       const response = await fetch(`/api/admin/bookings/${bookingId}`, {
         method: "DELETE",
@@ -249,7 +386,11 @@ export default function BookingsPage() {
     handleCloseDialog();
   };
 
-  const handleStatusChange = async (bookingId: string, UserID: string, newStatus: string) => {
+  const handleStatusChange = async (
+    bookingId: string,
+    UserID: string,
+    newStatus: string
+  ) => {
     const statusText = newStatus === "confirmed" ? "approve" : "cancel";
 
     if (!confirm(`Are you sure you want to ${statusText} this booking?`)) {
@@ -257,7 +398,6 @@ export default function BookingsPage() {
     }
 
     setIsGlobalActionLoading(true);
-    
     try {
       const response = await fetch(`/api/admin/bookings/${bookingId}/status`, {
         method: "PUT",
@@ -282,20 +422,20 @@ export default function BookingsPage() {
 
   const clearAllFilters = () => {
     setSearchTerm("");
-    setSelectedDate(undefined);
+    setSelectedDate(new Date());
     setSelectedLocation("all");
+    setSelectedBoardroom("all");
     setSelectedStatus("all");
     setSelectedType("all");
     setSelectedStartTime("all");
     setSelectedEndTime("all");
+    setAvailableSlots([]);
     toast.success("Filters cleared");
   };
 
   const getDateLabel = (dateString: string) => {
     const date = new Date(dateString);
     if (isToday(date)) return "Today";
-    if (isTomorrow(date)) return "Tomorrow";
-    if (isYesterday(date)) return "Yesterday";
     return format(date, "MMM d, yyyy");
   };
 
@@ -306,22 +446,47 @@ export default function BookingsPage() {
     }
 
     const headers = [
-      "ID", "Event Title", "Booker Name", "Booker Email", "Booker ID", "User ID",
-      "Date", "Start Time", "End Time", "Duration (mins)", "Tokens Used",
-      "Phone Number", "Status", "Boardroom Name", "Boardroom Capacity",
-      "Location Name", "Location Address", "Created At", "Booking Type"
+      "ID",
+      "Event Title",
+      "Booker Name",
+      "Booker Email",
+      "Booker ID",
+      "User ID",
+      "Date",
+      "Start Time",
+      "End Time",
+      "Duration (mins)",
+      "Tokens Used",
+      "Phone Number",
+      "Status",
+      "Boardroom Name",
+      "Boardroom Capacity",
+      "Location Name",
+      "Location Address",
+      "Created At",
+      "Booking Type",
     ];
 
     const csvData = filteredBookings.map((booking) => [
-      booking.id, booking.eventTitle, booking.bookerName, booking.bookerEmail,
-      booking.bookerId, booking.UserID, booking.date,
+      booking.id,
+      booking.eventTitle,
+      booking.bookerName,
+      booking.bookerEmail,
+      booking.bookerId,
+      booking.UserID,
+      booking.date,
       format(new Date(booking.startTime), "HH:mm"),
-      format(new Date(booking.endTime), "HH:mm"), booking.duration,
-      booking.tokensUsed, booking.phoneNumber, booking.status,
-      booking.boardroom.name, booking.boardroom.capacity,
-      booking.boardroom.location.name, booking.boardroom.location.address,
+      format(new Date(booking.endTime), "HH:mm"),
+      booking.duration,
+      booking.tokensUsed,
+      booking.phoneNumber,
+      booking.status,
+      booking.boardroom.name,
+      booking.boardroom.capacity,
+      booking.boardroom.location.name,
+      booking.boardroom.location.address,
       format(new Date(booking.createdAt), "yyyy-MM-dd HH:mm"),
-      booking.isExsisting ? "Internal" : "External"
+      booking.isExsisting ? "Internal" : "External",
     ]);
 
     const dateStr = format(new Date(), "yyyy-MM-dd");
@@ -329,39 +494,71 @@ export default function BookingsPage() {
     toast.success("CSV exported successfully");
   };
 
-  // **FIX 2: Updated filter logic**
   const filteredBookings = bookings.filter((booking) => {
-    const matchesSearch = !searchTerm || 
+    const matchesSearch =
+      !searchTerm ||
       booking.eventTitle.toLowerCase().includes(searchTerm.toLowerCase()) ||
       booking.bookerName.toLowerCase().includes(searchTerm.toLowerCase()) ||
       booking.bookerEmail.toLowerCase().includes(searchTerm.toLowerCase()) ||
       booking.boardroom.name.toLowerCase().includes(searchTerm.toLowerCase());
 
-    const matchesLocation = selectedLocation === "all" || 
+    const matchesLocation =
+      selectedLocation === "all" ||
       booking.boardroom.location.id === selectedLocation;
 
-    const matchesType = selectedType === "all" || 
-      booking.isExsisting === (selectedType === "internel");
+    const matchesBoardroom =
+      selectedBoardroom === "all" || booking.boardroom.id === selectedBoardroom;
 
-    const matchesStatus = selectedStatus === "all" || booking.status === selectedStatus;
+    const matchesType =
+      selectedType === "all" ||
+      booking.isExsisting === (selectedType === "internal");
 
-    const matchesDate = !selectedDate || 
-      format(new Date(booking.date), "yyyy-MM-dd") === format(selectedDate, "yyyy-MM-dd");
+    const matchesStatus =
+      selectedStatus === "all" || booking.status === selectedStatus;
+
+    const matchesDate =
+      !selectedDate ||
+      format(new Date(booking.date), "yyyy-MM-dd") ===
+        format(selectedDate, "yyyy-MM-dd");
 
     const matchesTimeRange = (startTime: string, endTime: string) => {
       if (startTime === "all" && endTime === "all") return true;
 
-      const bookingStart = parse(format(new Date(booking.startTime), "HH:mm"), "HH:mm", new Date());
-      const bookingEnd = parse(format(new Date(booking.endTime), "HH:mm"), "HH:mm", new Date());
+      const bookingStart = parse(
+        format(new Date(booking.startTime), "HH:mm"),
+        "HH:mm",
+        new Date()
+      );
+      const bookingEnd = parse(
+        format(new Date(booking.endTime), "HH:mm"),
+        "HH:mm",
+        new Date()
+      );
 
-      const start = startTime !== "all" ? parse(startTime, "hh:mm a", new Date()) : new Date(2025, 0, 1, 8, 0);
-      const end = endTime !== "all" ? parse(endTime, "hh:mm a", new Date()) : new Date(2025, 0, 1, 23, 59);
+      const start =
+        startTime !== "all"
+          ? parse(startTime, "hh:mm a", new Date())
+          : new Date(2025, 0, 1, 8, 0);
+      const end =
+        endTime !== "all"
+          ? parse(endTime, "hh:mm a", new Date())
+          : new Date(2025, 0, 1, 23, 59);
 
-      return bookingStart.getTime() >= start.getTime() && bookingEnd.getTime() <= end.getTime();
+      return (
+        bookingStart.getTime() >= start.getTime() &&
+        bookingEnd.getTime() <= end.getTime()
+      );
     };
 
-    return matchesSearch && matchesLocation && matchesStatus && matchesDate && 
-           matchesType && matchesTimeRange(selectedStartTime, selectedEndTime);
+    return (
+      matchesSearch &&
+      matchesLocation &&
+      matchesBoardroom &&
+      matchesStatus &&
+      matchesDate &&
+      matchesType &&
+      matchesTimeRange(selectedStartTime, selectedEndTime)
+    );
   });
 
   if (isLoading) {
@@ -387,7 +584,10 @@ export default function BookingsPage() {
       )}
 
       <div className="space-y-6">
-        <PageHeader title="Bookings Management" description="View and manage all room bookings across locations">
+        <PageHeader
+          title="Bookings Management"
+          description="View and manage all room bookings across locations"
+        >
           <div className="flex gap-2">
             <Button
               variant="outline"
@@ -397,13 +597,21 @@ export default function BookingsPage() {
               <Download className="h-4 w-4 mr-2" />
               Export CSV
             </Button>
-            
-            {/* **FIXED: Filter Modal Trigger */}
-            <Dialog open={isFilterModalOpen} onOpenChange={setIsFilterModalOpen}>
+            <Dialog
+              open={isFilterModalOpen}
+              onOpenChange={setIsFilterModalOpen}
+            >
               <DialogTrigger asChild>
                 <Button
                   variant="outline"
-                  onClick={handleOpenFilterModal}
+                  onClick={() => {
+                    if (locations.length === 0 && !isLoading) {
+                      toast.info("Loading locations...");
+                      fetchLocations().then(() => setIsFilterModalOpen(true));
+                    } else {
+                      setIsFilterModalOpen(true);
+                    }
+                  }}
                   disabled={isGlobalActionLoading}
                   className="bg-blue-50 hover:bg-blue-100 border-blue-200"
                 >
@@ -416,7 +624,6 @@ export default function BookingsPage() {
                   )}
                 </Button>
               </DialogTrigger>
-              
               <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
                 <DialogHeader>
                   <DialogTitle className="flex items-center justify-between">
@@ -430,7 +637,6 @@ export default function BookingsPage() {
                     </Button>
                   </DialogTitle>
                 </DialogHeader>
-                
                 <div className="space-y-6">
                   {/* Search */}
                   <div className="grid gap-2">
@@ -454,7 +660,11 @@ export default function BookingsPage() {
                       <Calendar
                         mode="single"
                         selected={selectedDate}
-                        onSelect={setSelectedDate}
+                        onSelect={(date) => {
+                          setSelectedDate(date);
+                          setSelectedBoardroom("all");
+                          setAvailableSlots([]);
+                        }}
                         className="rounded-md border w-full"
                       />
                       {selectedDate && (
@@ -464,15 +674,24 @@ export default function BookingsPage() {
                       )}
                     </div>
 
-                    {/* **FIX 3: Location Filter - Now Properly Rendered */}
+                    {/* Location Filter */}
                     <div className="space-y-2">
                       <Label>Location</Label>
-                      <Select value={selectedLocation} onValueChange={setSelectedLocation}>
+                      <Select
+                        value={selectedLocation}
+                        onValueChange={(value) => {
+                          setSelectedLocation(value);
+                          setSelectedBoardroom("all");
+                          setAvailableSlots([]);
+                        }}
+                      >
                         <SelectTrigger>
                           <SelectValue placeholder="All locations" />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="all">All Locations ({locations.length})</SelectItem>
+                          <SelectItem value="all">
+                            All Locations ({locations.length})
+                          </SelectItem>
                           {locations.length > 0 ? (
                             locations.map((location) => (
                               <SelectItem key={location.id} value={location.id}>
@@ -480,7 +699,11 @@ export default function BookingsPage() {
                               </SelectItem>
                             ))
                           ) : (
-                            <SelectItem value="no-locations" disabled className="text-slate-400">
+                            <SelectItem
+                              value="no-locations"
+                              disabled
+                              className="text-slate-400"
+                            >
                               No locations available
                             </SelectItem>
                           )}
@@ -489,10 +712,94 @@ export default function BookingsPage() {
                     </div>
                   </div>
 
+                  {/* Boardroom Filter */}
+                  {selectedLocation !== "all" && (
+                    <div className="grid grid-cols-2 gap-6">
+                      <div className="space-y-2">
+                        <Label>Boardroom</Label>
+                        <Select
+                          value={selectedBoardroom}
+                          onValueChange={(value) => {
+                            setSelectedBoardroom(value);
+                            setAvailableSlots([]);
+                          }}
+                        >
+                          <SelectTrigger>
+                            <SelectValue placeholder="All boardrooms" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="all">All Boardrooms</SelectItem>
+                            {locations
+                              .find((loc) => loc.id === selectedLocation)
+                              ?.boardrooms.map((boardroom) => (
+                                <SelectItem
+                                  key={boardroom.id}
+                                  value={boardroom.id}
+                                >
+                                  {boardroom.name}
+                                </SelectItem>
+                              )) || (
+                              <SelectItem
+                                value="no-boardrooms"
+                                disabled
+                                className="text-slate-400"
+                              >
+                                No boardrooms available
+                              </SelectItem>
+                            )}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Available Time Slots */}
+                  {selectedDate &&
+                    selectedLocation !== "all" &&
+                    selectedBoardroom !== "all" && (
+                      <div className="space-y-2">
+                        <Label>Available Time Slots</Label>
+                        {isLoadingSlots ? (
+                          <div className="flex justify-center py-4">
+                            <Loader2 className="h-6 w-6 animate-spin text-blue-500" />
+                          </div>
+                        ) : availableSlots.length > 0 ? (
+                          <div className="grid grid-cols-3 gap-2 max-h-40 overflow-y-auto p-2 border rounded-md">
+                            {availableSlots.map((slot, index) => (
+                              <Button
+                                key={index}
+                                variant="outline"
+                                className="text-sm"
+                                onClick={() => {
+                                  setSelectedStartTime(slot.startTime);
+                                  setSelectedEndTime(slot.endTime);
+                                  setIsFilterModalOpen(false);
+                                  toast.success(
+                                    `Selected slot: ${slot.startTime} - ${slot.endTime}`
+                                  );
+                                }}
+                              >
+                                {slot.startTime} - {slot.endTime}
+                              </Button>
+                            ))}
+                          </div>
+                        ) : (
+                          <p className="text-sm text-slate-500">
+                            {isToday(selectedDate)
+                              ? "No slots available after current time."
+                              : "No available slots for the selected criteria."}
+                          </p>
+                        )}
+                      </div>
+                    )}
+
                   <div className="grid grid-cols-2 gap-6">
                     <div className="space-y-2">
                       <Label>Status</Label>
-                      <Select value={selectedStatus} onValueChange={setSelectedStatus}>
+                      <Select
+                        value={selectedStatus}
+                        onValueChange={setSelectedStatus}
+                      >
                         <SelectTrigger>
                           <SelectValue placeholder="All statuses" />
                         </SelectTrigger>
@@ -507,56 +814,34 @@ export default function BookingsPage() {
 
                     <div className="space-y-2">
                       <Label>Booking Type</Label>
-                      <Select value={selectedType} onValueChange={setSelectedType}>
+                      <Select
+                        value={selectedType}
+                        onValueChange={setSelectedType}
+                      >
                         <SelectTrigger>
                           <SelectValue placeholder="All types" />
                         </SelectTrigger>
                         <SelectContent>
                           <SelectItem value="all">All Types</SelectItem>
                           <SelectItem value="external">External</SelectItem>
-                          <SelectItem value="internel">Internal</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-6">
-                    <div className="space-y-2">
-                      <Label>Start Time</Label>
-                      <Select value={selectedStartTime} onValueChange={setSelectedStartTime}>
-                        <SelectTrigger>
-                          <SelectValue placeholder="All start times" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="all">All Start Times</SelectItem>
-                          {timeOptions.map((time) => (
-                            <SelectItem key={time} value={time}>{time}</SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-
-                    <div className="space-y-2">
-                      <Label>End Time</Label>
-                      <Select value={selectedEndTime} onValueChange={setSelectedEndTime}>
-                        <SelectTrigger>
-                          <SelectValue placeholder="All end times" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="all">All End Times</SelectItem>
-                          {timeOptions.map((time) => (
-                            <SelectItem key={time} value={time}>{time}</SelectItem>
-                          ))}
+                          <SelectItem value="internal">Internal</SelectItem>
                         </SelectContent>
                       </Select>
                     </div>
                   </div>
 
                   <div className="flex justify-end space-x-2 pt-4">
-                    <Button variant="outline" type="button" onClick={clearAllFilters}>
+                    <Button
+                      variant="outline"
+                      type="button"
+                      onClick={clearAllFilters}
+                    >
                       Clear All
                     </Button>
-                    <Button type="button" onClick={() => setIsFilterModalOpen(false)}>
+                    <Button
+                      type="button"
+                      onClick={() => setIsFilterModalOpen(false)}
+                    >
                       Apply Filters
                     </Button>
                   </div>
@@ -580,9 +865,15 @@ export default function BookingsPage() {
             <Card>
               <CardContent className="flex flex-col items-center justify-center py-16">
                 <CalendarIcon className="h-16 w-16 text-slate-300 mb-4" />
-                <h3 className="text-xl font-semibold text-slate-600 mb-2">No bookings found</h3>
+                <h3 className="text-xl font-semibold text-slate-600 mb-2">
+                  No bookings found
+                </h3>
                 <p className="text-slate-500 text-center mb-6">
-                  {searchTerm || selectedDate || selectedLocation !== "all" || selectedStatus !== "all"
+                  {searchTerm ||
+                  selectedDate ||
+                  selectedLocation !== "all" ||
+                  selectedBoardroom !== "all" ||
+                  selectedStatus !== "all"
                     ? "Try adjusting your filters to see more results."
                     : "No bookings have been made yet."}
                 </p>
@@ -605,37 +896,62 @@ export default function BookingsPage() {
               </p>
 
               {filteredBookings.map((booking) => (
-                <Card key={booking.id} className="hover:shadow-md transition-shadow">
+                <Card
+                  key={booking.id}
+                  className="hover:shadow-md transition-shadow"
+                >
                   <CardHeader>
                     <div className="flex items-start justify-between">
                       <div>
-                        <CardTitle className="text-lg">{booking.eventTitle}</CardTitle>
+                        <CardTitle className="text-lg">
+                          {booking.eventTitle}
+                        </CardTitle>
                         <CardDescription className="flex items-center mt-1">
                           <MapPin className="h-4 w-4 mr-1" />
-                          {booking.boardroom.location.name} - {booking.boardroom.name}
+                          {booking.boardroom.location.name} -{" "}
+                          {booking.boardroom.name}
                         </CardDescription>
                       </div>
                       <div className="flex items-center space-x-2">
-                        <Badge variant={
-                          booking.status === "confirmed" ? "default" :
-                          booking.status === "pending" ? "secondary" : "destructive"
-                        }>
+                        <Badge
+                          variant={
+                            booking.status === "confirmed"
+                              ? "default"
+                              : booking.status === "pending"
+                              ? "secondary"
+                              : "destructive"
+                          }
+                        >
                           {booking.status}
                         </Badge>
 
                         {booking.status === "pending" && (
                           <div className="flex space-x-1">
                             <Button
-                              variant="outline" size="sm"
-                              onClick={() => handleStatusChange(booking.id, booking.UserID, "confirmed")}
+                              variant="outline"
+                              size="sm"
+                              onClick={() =>
+                                handleStatusChange(
+                                  booking.id,
+                                  booking.UserID,
+                                  "confirmed"
+                                )
+                              }
                               className="bg-green-50 hover:bg-green-100 text-green-700 border-green-200"
                               disabled={isGlobalActionLoading}
                             >
                               Approve
                             </Button>
                             <Button
-                              variant="outline" size="sm"
-                              onClick={() => handleStatusChange(booking.id, booking.UserID, "cancelled")}
+                              variant="outline"
+                              size="sm"
+                              onClick={() =>
+                                handleStatusChange(
+                                  booking.id,
+                                  booking.UserID,
+                                  "cancelled"
+                                )
+                              }
                               className="bg-red-50 hover:bg-red-100 text-red-700 border-red-200"
                               disabled={isGlobalActionLoading}
                             >
@@ -646,8 +962,15 @@ export default function BookingsPage() {
 
                         {booking.status === "confirmed" && (
                           <Button
-                            variant="outline" size="sm"
-                            onClick={() => handleStatusChange(booking.id, booking.UserID, "cancelled")}
+                            variant="outline"
+                            size="sm"
+                            onClick={() =>
+                              handleStatusChange(
+                                booking.id,
+                                booking.UserID,
+                                "cancelled"
+                              )
+                            }
                             className="bg-red-50 hover:bg-red-100 text-red-700 border-red-200"
                             disabled={isGlobalActionLoading}
                           >
@@ -656,13 +979,24 @@ export default function BookingsPage() {
                         )}
 
                         <div className="flex space-x-1">
-                          <Button variant="ghost" size="sm" onClick={() => handleEdit(booking)} disabled={isGlobalActionLoading}>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleEdit(booking)}
+                            disabled={isGlobalActionLoading}
+                          >
                             <Edit className="h-4 w-4" />
                           </Button>
                           <Button
-                            variant="ghost" size="sm"
-                            disabled={booking.status !== "cancelled" || isGlobalActionLoading}
-                            onClick={() => handleDelete(booking.id, booking.UserID)}
+                            variant="ghost"
+                            size="sm"
+                            disabled={
+                              booking.status !== "cancelled" ||
+                              isGlobalActionLoading
+                            }
+                            onClick={() =>
+                              handleDelete(booking.id, booking.UserID)
+                            }
                           >
                             <Trash2 className="h-4 w-4" />
                           </Button>
@@ -678,7 +1012,8 @@ export default function BookingsPage() {
                       </div>
                       <div className="flex items-center text-sm text-slate-600">
                         <Clock className="h-4 w-4 mr-2" />
-                        {format(new Date(booking.startTime), "HH:mm")} - {format(new Date(booking.endTime), "HH:mm")}
+                        {format(new Date(booking.startTime), "HH:mm")} -{" "}
+                        {format(new Date(booking.endTime), "HH:mm")}
                       </div>
                       <div className="flex items-center text-sm text-slate-600">
                         <Users className="h-4 w-4 mr-2" />
@@ -704,7 +1039,8 @@ export default function BookingsPage() {
                         <div className="text-sm text-slate-500">
                           {booking.isExsisting ? (
                             <>
-                              {booking.tokensUsed} token{booking.tokensUsed !== 1 ? "s" : ""} used
+                              {booking.tokensUsed} token
+                              {booking.tokensUsed !== 1 ? "s" : ""} used
                             </>
                           ) : (
                             "External Booking"
@@ -712,9 +1048,15 @@ export default function BookingsPage() {
                         </div>
                       </div>
                       <div className="flex items-center justify-between mt-2">
-                        <div className="text-xs text-slate-400">Booker ID: {booking.bookerId}</div>
+                        <div className="text-xs text-slate-400">
+                          Booker ID: {booking.bookerId}
+                        </div>
                         {booking.isExsisting && (
-                          <div className="text-xs text-slate-400">User ID: {booking.UserID}</div>
+                          <div className="text-xs text-slate-400">
+                            User :{" "}
+                            {users.find((user) => user.id === booking.UserID)
+                              ?.name ?? booking.UserID}
+                          </div>
                         )}
                       </div>
                     </div>

@@ -27,6 +27,7 @@ import BookingForm from "./BookingForm";
 import BookingSummary from "./BookingSummary";
 import { StepPill } from "./StepPill";
 import { Calendar, Clock, CheckCircle } from "lucide-react";
+import { SkeletonLoader } from "../SkeletonLoader";
 
 interface BookingModalProps {
   open: boolean;
@@ -59,6 +60,9 @@ export function BookingModal({
   const [isExistingUser, setIsExistingUser] = useState(false);
   const [userId, setUserId] = useState("");
   const [tokenData, setTokenData] = useState<TokenData | null>(null);
+  const [exsistingBookingDetials, setexsistingBookingDetials] = useState<any[]>(
+    []
+  );
 
   const [formData, setFormData] = useState({
     eventTitle: "",
@@ -78,6 +82,7 @@ export function BookingModal({
       setIsExistingUser(false);
       setUserId("");
       setTokenData(null);
+      setexsistingBookingDetials([]);
       fetchBoardroomBookings();
     }
   }, [open, boardroom?.id]);
@@ -116,11 +121,20 @@ export function BookingModal({
       const res = await fetch(`/api/boardrooms/${boardroom.id}`);
       if (!res.ok) return;
       const data = await res.json();
+      setexsistingBookingDetials(data);
       setExistingBookings(data.bookings || []);
     } catch (err) {
       console.error("fetchBoardroomBookings error:", err);
     }
   };
+
+  useEffect(() => {
+    if (exsistingBookingDetials.length === 0) {
+      setIsLoading(true);
+    } else {
+      setIsLoading(false);
+    }
+  }, [exsistingBookingDetials]);
 
   const generateTimeSlots = (intervalMinutes = 30) => {
     const slots: string[] = [];
@@ -228,15 +242,14 @@ export function BookingModal({
         timeRange: string;
         seatingArrangement: string;
       }
-     
-     
-      const match =boardroom?.pricingOptions !== null && boardroom?.pricingOptions.find(
-        (opt: PricingOption) =>
-          parseInt(opt.timeRange) === hours &&
-          selectedPriceOption === opt.seatingArrangement
-      );
 
-    
+      const match =
+        boardroom?.pricingOptions !== null &&
+        boardroom?.pricingOptions.find(
+          (opt: PricingOption) =>
+            parseInt(opt.timeRange) === hours &&
+            selectedPriceOption === opt.seatingArrangement
+        );
 
       const resp = await fetch("/api/bookings", {
         method: "POST",
@@ -289,6 +302,16 @@ export function BookingModal({
   const formattedSelectedDate = selectedDate
     ? format(selectedDate, "MMMM d, yyyy")
     : "";
+
+  if (isLoading) {
+    return (
+      <Dialog open={open} onOpenChange={onOpenChange}>
+        <DialogContent className="sm:max-w-5xl max-h-[90vh] overflow-y-auto">
+          <SkeletonLoader />
+        </DialogContent>
+      </Dialog>
+    );
+  }
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>

@@ -63,6 +63,9 @@ export async function PUT(
       tokenAdjustment = -existingBooking.tokensUsed;
     }
 
+    console.log(UserID);
+    
+
     // Update booking status and adjust tokens in a transaction
     const result = await prisma.$transaction([
       prisma.booking.update({
