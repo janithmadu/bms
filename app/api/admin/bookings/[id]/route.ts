@@ -162,19 +162,19 @@ export async function DELETE(
           where: { id: params.id },
         });
 
-        if (booking.status === "cancelled") {
-          if (UserID) {
-            await tx.user.update({
-              where: { id: UserID },
-              data: {
-                tokensAvailable: { increment: booking.tokensUsed },
-                tokensUsed: { decrement: booking.tokensUsed },
-              },
-            });
-          } else {
-            throw new Error("No User Found");
-          }
-        }
+        // if (booking.status === "cancelled") {
+        //   if (UserID) {
+        //     await tx.user.update({
+        //       where: { id: UserID },
+        //       data: {
+        //         tokensAvailable: { increment: booking.tokensUsed },
+        //         tokensUsed: { decrement: booking.tokensUsed },
+        //       },
+        //     });
+        //   } else {
+        //     throw new Error("No User Found");
+        //   }
+        // }
       },
       {
         timeout: 15000, // ⏱ 15 seconds
