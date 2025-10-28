@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { Prisma, User } from "@prisma/client";
+import { sendBookingReceivedEmail } from "@/lib/mailer";
 
 export async function POST(request: NextRequest) {
   try {
@@ -64,6 +65,7 @@ export async function POST(request: NextRequest) {
             price: Price ?? "0",
             status: "pending",
             phoneNumber,
+            financeStatus:isExistingUser ? "finance-approve" : "finance-pending",
             booker: { connect: { id: bookerId ?? "7Wcpw" } },
             boardroom: { connect: { id: boardroomId ?? "" } },
           },
@@ -101,6 +103,33 @@ export async function POST(request: NextRequest) {
         },
       },
     });
+
+    if (!completeBooking) {
+      return NextResponse.json(
+        { error: "Booking created but could not retrieve details" },
+        { status: 500 }
+      );
+    }
+
+    // ---- 5. SEND "BOOKING RECEIVED" EMAIL (non-blocking) ------------------
+    (async () => {
+      try {
+        await sendBookingReceivedEmail({
+          to: bookerEmail,
+          bookerName,
+          eventTitle,
+          date: completeBooking.date.toISOString(),
+          startTime: completeBooking.startTime.toISOString(),
+          endTime: completeBooking.endTime.toISOString(),
+          boardroomName: completeBooking.boardroom.name,
+          locationName: completeBooking.boardroom.location.name,
+        });
+        console.log(`Booking received email sent to ${bookerEmail}`);
+      } catch (mailErr) {
+        console.error(`Failed to send email to ${bookerEmail}:`, mailErr);
+        // Optional: Save to NotificationLog table for retry
+      }
+    })();
 
     return NextResponse.json(completeBooking);
   } catch (error) {

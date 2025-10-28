@@ -58,7 +58,7 @@ import {
 } from "@/components/ui/dialog";
 import { User } from "@prisma/client";
 
-// Define interfaces
+// === 1. UPDATE: Add financeStatus to Booking ===
 interface Booking {
   id: string;
   eventTitle: string;
@@ -75,6 +75,7 @@ interface Booking {
   price?: number;
   phoneNumber: string;
   status: string;
+  financeStatus?: "finance-pending" | "finance-approved" | "finance-rejected"; // ← NEW
   boardroom: {
     id: string;
     name: string;
@@ -100,7 +101,6 @@ interface TimeSlot {
   isAvailable: boolean;
 }
 
-// Utility function to download CSV
 const downloadCSV = (data: any[], headers: string[], filename: string) => {
   const csvContent = [
     headers.join(","),
@@ -122,7 +122,6 @@ const downloadCSV = (data: any[], headers: string[], filename: string) => {
   document.body.removeChild(link);
 };
 
-// Generate time options (for reference, not directly used here)
 const generateTimeOptions = () => {
   const times = [];
   let hour = 8;
@@ -199,7 +198,6 @@ export default function BookingsPage() {
         const data = await response.json();
         setUsers(data);
       }
-
       if (response.status === 401) {
         const data = await response.json();
         toast.error(data.error);
@@ -217,9 +215,7 @@ export default function BookingsPage() {
       const response = await fetch(
         `/api/locations?userId=${session?.user.id}&role=${session?.user.role}`
       );
-      if (!response.ok) {
-        throw new Error("Failed to fetch locations");
-      }
+      if (!response.ok) throw new Error("Failed to fetch locations");
       const data = await response.json();
       setLocations(Array.isArray(data) ? data : []);
     } catch (error) {
@@ -241,7 +237,6 @@ export default function BookingsPage() {
 
     setIsLoadingSlots(true);
     try {
-      // Get current time, rounded to the next 30-minute interval for today
       const now = new Date();
       const minutes = now.getMinutes();
       const roundedMinutes = minutes < 30 ? 30 : 60;
@@ -250,18 +245,15 @@ export default function BookingsPage() {
         roundedMinutes - minutes
       );
 
-      // Define day boundaries
       const dayStart = new Date(selectedDate);
       dayStart.setHours(0, 0, 0, 0);
       const dayEnd = new Date(selectedDate);
       dayEnd.setHours(23, 59, 59, 999);
 
-      // Determine the earliest start time based on current time or day start
       const earliestStartTime = isToday(selectedDate)
         ? addMinutes(startOfMinute(new Date()), roundedMinutes - minutes)
         : dayStart;
 
-      // Get bookings for the selected boardroom and date
       const boardroomBookings = bookings.filter(
         (booking) =>
           booking.boardroom.id === selectedBoardroom &&
@@ -269,17 +261,14 @@ export default function BookingsPage() {
             format(selectedDate, "yyyy-MM-dd")
       );
 
-      // Find the latest end time of existing bookings
       const latestEndTime = boardroomBookings.reduce((latest, booking) => {
         const bookingEnd = new Date(booking.endTime);
         return bookingEnd > latest ? bookingEnd : latest;
       }, earliestStartTime);
 
-      // Generate 30-minute slots starting from the latest end time or earliest start time
       const allSlots: TimeSlot[] = [];
       let currentTimeSlot = new Date(latestEndTime);
 
-      // Ensure the start time is aligned to the nearest 30-minute interval
       if (
         currentTimeSlot.getMinutes() !== 0 &&
         currentTimeSlot.getMinutes() !== 30
@@ -291,7 +280,6 @@ export default function BookingsPage() {
         currentTimeSlot = addMinutes(currentTimeSlot, minutesToNextSlot);
       }
 
-      // Generate slots until the end of the day
       while (currentTimeSlot < dayEnd) {
         const slotStart = new Date(currentTimeSlot);
         const slotEnd = new Date(currentTimeSlot.getTime() + 30 * 60 * 1000);
@@ -304,7 +292,6 @@ export default function BookingsPage() {
         currentTimeSlot = slotEnd;
       }
 
-      // Filter out booked slots
       const available = allSlots.map((slot) => {
         const slotStart = parse(slot.startTime, "hh:mm a", selectedDate);
         const slotEnd = parse(slot.endTime, "hh:mm a", selectedDate);
@@ -334,7 +321,9 @@ export default function BookingsPage() {
   };
 
   useEffect(() => {
-    Promise.all([fetchBookings(), fetchLocations(), fetchUsers()]);
+    if (session?.user.id && session?.user.role) {
+      Promise.all([fetchBookings(), fetchLocations(), fetchUsers()]);
+    }
   }, [session?.user.id, session?.user.role]);
 
   useEffect(() => {
@@ -346,9 +335,8 @@ export default function BookingsPage() {
       !confirm(
         "Are you sure you want to cancel this booking? Tokens will be refunded."
       )
-    ) {
+    )
       return;
-    }
 
     setIsGlobalActionLoading(true);
     try {
@@ -393,9 +381,8 @@ export default function BookingsPage() {
   ) => {
     const statusText = newStatus === "confirmed" ? "approve" : "cancel";
 
-    if (!confirm(`Are you sure you want to ${statusText} this booking?`)) {
+    if (!confirm(`Are you sure you want to ${statusText} this booking?`))
       return;
-    }
 
     setIsGlobalActionLoading(true);
     try {
@@ -415,6 +402,45 @@ export default function BookingsPage() {
     } catch (error) {
       console.error(`Error ${statusText}ing booking:`, error);
       toast.error(`Failed to ${statusText} booking`);
+    } finally {
+      setIsGlobalActionLoading(false);
+    }
+  };
+
+  // === 2. NEW: Finance Approval Handler ===
+  const handleFinanceStatusChange = async (
+    bookingId: string,
+    newStatus: "finance-approved" | "finance-rejected"
+  ) => {
+    const action =
+      newStatus === "finance-approved" ? "finance-approve" : "finance-reject";
+
+    if (
+      !confirm(`Are you sure you want to ${action} this booking financially?`)
+    )
+      return;
+
+    setIsGlobalActionLoading(true);
+    try {
+      const response = await fetch(
+        `/api/admin/bookings/${bookingId}/finance-status`,
+        {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ financeStatus: newStatus }),
+        }
+      );
+
+      if (response.ok) {
+        toast.success(`Finance ${action}ed successfully`);
+        fetchBookings();
+      } else {
+        const error = await response.json();
+        toast.error(error.error || `Failed to ${action} booking`);
+      }
+    } catch (error) {
+      console.error(`Error ${action}ing booking:`, error);
+      toast.error(`Failed to ${action} booking`);
     } finally {
       setIsGlobalActionLoading(false);
     }
@@ -459,6 +485,7 @@ export default function BookingsPage() {
       "Tokens Used",
       "Phone Number",
       "Status",
+      "Finance Status",
       "Boardroom Name",
       "Boardroom Capacity",
       "Location Name",
@@ -481,6 +508,7 @@ export default function BookingsPage() {
       booking.tokensUsed,
       booking.phoneNumber,
       booking.status,
+      booking.financeStatus || "N/A",
       booking.boardroom.name,
       booking.boardroom.capacity,
       booking.boardroom.location.name,
@@ -505,17 +533,13 @@ export default function BookingsPage() {
     const matchesLocation =
       selectedLocation === "all" ||
       booking.boardroom.location.id === selectedLocation;
-
     const matchesBoardroom =
       selectedBoardroom === "all" || booking.boardroom.id === selectedBoardroom;
-
     const matchesType =
       selectedType === "all" ||
       booking.isExsisting === (selectedType === "internal");
-
     const matchesStatus =
       selectedStatus === "all" || booking.status === selectedStatus;
-
     const matchesDate =
       !selectedDate ||
       format(new Date(booking.date), "yyyy-MM-dd") ===
@@ -523,7 +547,6 @@ export default function BookingsPage() {
 
     const matchesTimeRange = (startTime: string, endTime: string) => {
       if (startTime === "all" && endTime === "all") return true;
-
       const bookingStart = parse(
         format(new Date(booking.startTime), "HH:mm"),
         "HH:mm",
@@ -534,7 +557,6 @@ export default function BookingsPage() {
         "HH:mm",
         new Date()
       );
-
       const start =
         startTime !== "all"
           ? parse(startTime, "hh:mm a", new Date())
@@ -543,7 +565,6 @@ export default function BookingsPage() {
         endTime !== "all"
           ? parse(endTime, "hh:mm a", new Date())
           : new Date(2025, 0, 1, 23, 59);
-
       return (
         bookingStart.getTime() >= start.getTime() &&
         bookingEnd.getTime() <= end.getTime()
@@ -597,6 +618,7 @@ export default function BookingsPage() {
               <Download className="h-4 w-4 mr-2" />
               Export CSV
             </Button>
+
             <Dialog
               open={isFilterModalOpen}
               onOpenChange={setIsFilterModalOpen}
@@ -638,7 +660,6 @@ export default function BookingsPage() {
                   </DialogTitle>
                 </DialogHeader>
                 <div className="space-y-6">
-                  {/* Search */}
                   <div className="grid gap-2">
                     <Label htmlFor="search">Search</Label>
                     <div className="relative">
@@ -654,7 +675,6 @@ export default function BookingsPage() {
                   </div>
 
                   <div className="grid grid-cols-2 gap-6">
-                    {/* Date Picker */}
                     <div className="space-y-2">
                       <Label>Date</Label>
                       <Calendar
@@ -674,7 +694,6 @@ export default function BookingsPage() {
                       )}
                     </div>
 
-                    {/* Location Filter */}
                     <div className="space-y-2">
                       <Label>Location</Label>
                       <Select
@@ -712,7 +731,6 @@ export default function BookingsPage() {
                     </div>
                   </div>
 
-                  {/* Boardroom Filter */}
                   {selectedLocation !== "all" && (
                     <div className="grid grid-cols-2 gap-6">
                       <div className="space-y-2">
@@ -753,7 +771,6 @@ export default function BookingsPage() {
                     </div>
                   )}
 
-                  {/* Available Time Slots */}
                   {selectedDate &&
                     selectedLocation !== "all" &&
                     selectedBoardroom !== "all" && (
@@ -895,174 +912,274 @@ export default function BookingsPage() {
                 {selectedDate && ` for ${format(selectedDate, "MMMM d, yyyy")}`}
               </p>
 
-              {filteredBookings.map((booking) => (
-                <Card
-                  key={booking.id}
-                  className="hover:shadow-md transition-shadow"
-                >
-                  <CardHeader>
-                    <div className="flex items-start justify-between">
-                      <div>
-                        <CardTitle className="text-lg">
-                          {booking.eventTitle}
-                        </CardTitle>
-                        <CardDescription className="flex items-center mt-1">
-                          <MapPin className="h-4 w-4 mr-1" />
-                          {booking.boardroom.location.name} -{" "}
-                          {booking.boardroom.name}
-                        </CardDescription>
-                      </div>
-                      <div className="flex items-center space-x-2">
-                        <Badge
-                          variant={
-                            booking.status === "confirmed"
-                              ? "default"
-                              : booking.status === "pending"
-                              ? "secondary"
-                              : "destructive"
-                          }
-                        >
-                          {booking.status}
-                        </Badge>
+              {filteredBookings.map((booking) => {
+                const isExternal = !booking.isExsisting;
+                const userRole = session?.user.role;
 
-                        {booking.status === "pending" && (
+                return (
+                  <Card
+                    key={booking.id}
+                    className="hover:shadow-md transition-shadow"
+                  >
+                    <CardHeader>
+                      <div className="flex items-start justify-between">
+                        <div>
+                          <CardTitle className="text-lg">
+                            {booking.eventTitle}
+                          </CardTitle>
+                          <CardDescription className="flex items-center mt-1">
+                            <MapPin className="h-4 w-4 mr-1" />
+                            {booking.boardroom.location.name} -{" "}
+                            {booking.boardroom.name}
+                          </CardDescription>
+                        </div>
+
+                        {/* === ACTION BUTTONS === */}
+                        <div className="flex items-center space-x-2">
+                          <Badge
+                            className={`
+    inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-medium
+    ${
+      booking.status === "confirmed"
+        ? "bg-green-100 text-green-800 border-green-300"
+        : booking.status === "pending"
+        ? "bg-amber-100 text-amber-800 border-amber-300"
+        : booking.status === "cancelled"
+        ? "bg-red-100 text-red-800 border-red-300"
+        : "bg-gray-100 text-gray-800 border-gray-300"
+    }
+  `}
+                          >
+                            {booking.status}
+                          </Badge>
+
+                          <Badge
+                            className={`
+    inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-medium
+    ${
+      booking.financeStatus === "finance-approved"
+        ? "bg-emerald-100 text-emerald-800 border-emerald-300"
+        : booking.financeStatus === "finance-pending"
+        ? "bg-orange-100 text-orange-800 border-orange-300"
+        : booking.financeStatus === "finance-rejected"
+        ? "bg-red-100 text-red-800 border-red-300"
+        : "bg-gray-100 text-gray-800 border-gray-300"
+    }
+  `}
+                          >
+                            {booking.financeStatus ?? "N/A"}
+                          </Badge>
+
+                          {/* Pending: Internal → Normal Approve/Reject */}
+                          {booking.status === "pending" &&
+                            booking.financeStatus !== "finance-pending" &&
+                            userRole !== "financeadmin" && (
+                              <div className="flex space-x-1">
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() =>
+                                    handleStatusChange(
+                                      booking.id,
+                                      booking.UserID,
+                                      "confirmed"
+                                    )
+                                  }
+                                  className="bg-green-50 hover:bg-green-100 text-green-700 border-green-200"
+                                  disabled={isGlobalActionLoading}
+                                >
+                                  Approve
+                                </Button>
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() =>
+                                    handleStatusChange(
+                                      booking.id,
+                                      booking.UserID,
+                                      "cancelled"
+                                    )
+                                  }
+                                  className="bg-red-50 hover:bg-red-100 text-red-700 border-red-200"
+                                  disabled={isGlobalActionLoading}
+                                >
+                                  Reject
+                                </Button>
+                              </div>
+                            )}
+
+                          {/* Pending: External → Finance Admin */}
+                          {booking.status === "pending" &&
+                            isExternal &&
+                            userRole === "financeadmin" &&
+                            (!booking.financeStatus ||
+                              booking.financeStatus === "finance-pending") && (
+                              <div className="flex space-x-1">
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() =>
+                                    handleFinanceStatusChange(
+                                      booking.id,
+                                      "finance-approved"
+                                    )
+                                  }
+                                  className="bg-green-50 hover:bg-green-100 text-green-700 border-green-200"
+                                  disabled={isGlobalActionLoading}
+                                >
+                                  Finance Approve
+                                </Button>
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() =>
+                                    handleFinanceStatusChange(
+                                      booking.id,
+                                      "finance-rejected"
+                                    )
+                                  }
+                                  className="bg-red-50 hover:bg-red-100 text-red-700 border-red-200"
+                                  disabled={isGlobalActionLoading}
+                                >
+                                  Finance Reject
+                                </Button>
+                              </div>
+                            )}
+
+                          {/* Pending: External → Manager Final Approve */}
+                          {booking.status === "pending" &&
+                            isExternal &&
+                            userRole === "manager" &&
+                            booking.financeStatus === "finance-approved" && (
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() =>
+                                  handleStatusChange(
+                                    booking.id,
+                                    booking.UserID,
+                                    "confirmed"
+                                  )
+                                }
+                                className="bg-blue-50 hover:bg-blue-100 text-blue-700 border-blue-200"
+                                disabled={isGlobalActionLoading}
+                              >
+                                Final Approve
+                              </Button>
+                            )}
+
+                          {/* Confirmed → Cancel */}
+                          {booking.status === "confirmed" &&
+                            userRole !== "financeadmin" && (
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() =>
+                                  handleStatusChange(
+                                    booking.id,
+                                    booking.UserID,
+                                    "cancelled"
+                                  )
+                                }
+                                className="bg-red-50 hover:bg-red-100 text-red-700 border-red-200"
+                                disabled={isGlobalActionLoading}
+                              >
+                                Cancel
+                              </Button>
+                            )}
+
+                          {/* Edit / Delete */}
                           <div className="flex space-x-1">
                             <Button
-                              variant="outline"
+                              variant="ghost"
                               size="sm"
-                              onClick={() =>
-                                handleStatusChange(
-                                  booking.id,
-                                  booking.UserID,
-                                  "confirmed"
-                                )
+                              onClick={() => handleEdit(booking)}
+                              disabled={
+                                isGlobalActionLoading ||
+                                userRole === "financeadmin"
                               }
-                              className="bg-green-50 hover:bg-green-100 text-green-700 border-green-200"
-                              disabled={isGlobalActionLoading}
                             >
-                              Approve
+                              <Edit className="h-4 w-4" />
                             </Button>
                             <Button
-                              variant="outline"
+                              variant="ghost"
                               size="sm"
-                              onClick={() =>
-                                handleStatusChange(
-                                  booking.id,
-                                  booking.UserID,
-                                  "cancelled"
-                                )
+                              disabled={
+                                booking.status !== "cancelled" ||
+                                isGlobalActionLoading ||
+                                userRole === "financeadmin"
                               }
-                              className="bg-red-50 hover:bg-red-100 text-red-700 border-red-200"
-                              disabled={isGlobalActionLoading}
+                              onClick={() =>
+                                handleDelete(booking.id, booking.UserID)
+                              }
                             >
-                              Reject
+                              <Trash2 className="h-4 w-4" />
                             </Button>
                           </div>
-                        )}
+                        </div>
+                      </div>
+                    </CardHeader>
 
-                        {booking.status === "confirmed" && (
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() =>
-                              handleStatusChange(
-                                booking.id,
-                                booking.UserID,
-                                "cancelled"
-                              )
-                            }
-                            className="bg-red-50 hover:bg-red-100 text-red-700 border-red-200"
-                            disabled={isGlobalActionLoading}
-                          >
-                            Cancel
-                          </Button>
+                    <CardContent>
+                      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                        <div className="flex items-center text-sm text-slate-600">
+                          <CalendarIcon className="h-4 w-4 mr-2" />
+                          {getDateLabel(booking.date)}
+                        </div>
+                        <div className="flex items-center text-sm text-slate-600">
+                          <Clock className="h-4 w-4 mr-2" />
+                          {format(new Date(booking.startTime), "HH:mm")} -{" "}
+                          {format(new Date(booking.endTime), "HH:mm")}
+                        </div>
+                        <div className="flex items-center text-sm text-slate-600">
+                          <Users className="h-4 w-4 mr-2" />
+                          {booking.boardroom.capacity} capacity
+                        </div>
+                        {booking?.price && booking.price > 0 && (
+                          <div className="flex items-center text-sm text-slate-600">
+                            <Coins className="h-4 w-4 mr-2" />
+                            {booking.price} LKR
+                          </div>
                         )}
-
-                        <div className="flex space-x-1">
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => handleEdit(booking)}
-                            disabled={isGlobalActionLoading}
-                          >
-                            <Edit className="h-4 w-4" />
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            disabled={
-                              booking.status !== "cancelled" ||
-                              isGlobalActionLoading
-                            }
-                            onClick={() =>
-                              handleDelete(booking.id, booking.UserID)
-                            }
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                        </div>
                       </div>
-                    </div>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                      <div className="flex items-center text-sm text-slate-600">
-                        <CalendarIcon className="h-4 w-4 mr-2" />
-                        {getDateLabel(booking.date)}
-                      </div>
-                      <div className="flex items-center text-sm text-slate-600">
-                        <Clock className="h-4 w-4 mr-2" />
-                        {format(new Date(booking.startTime), "HH:mm")} -{" "}
-                        {format(new Date(booking.endTime), "HH:mm")}
-                      </div>
-                      <div className="flex items-center text-sm text-slate-600">
-                        <Users className="h-4 w-4 mr-2" />
-                        {booking.boardroom.capacity} capacity
-                      </div>
-                      {booking?.price && booking.price > 0 && (
-                        <div className="flex items-center text-sm text-slate-600">
-                          <Coins className="h-4 w-4 mr-2" />
-                          {booking.price} LKR
+                      <div className="mt-4 pt-4 border-t border-slate-100">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center text-sm text-slate-600">
+                            <Mail className="h-4 w-4 mr-2" />
+                            {booking.bookerName} ({booking.bookerEmail})
+                          </div>
+                          <div className="flex items-center text-sm text-slate-600">
+                            <Phone className="h-4 w-4 mr-2" />
+                            {booking.phoneNumber}
+                          </div>
+                          <div className="text-sm text-slate-500">
+                            {booking.isExsisting ? (
+                              <>
+                                {booking.tokensUsed} token
+                                {booking.tokensUsed !== 1 ? "s" : ""} used
+                              </>
+                            ) : (
+                              "External Booking"
+                            )}
+                          </div>
                         </div>
-                      )}
-                    </div>
-                    <div className="mt-4 pt-4 border-t border-slate-100">
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center text-sm text-slate-600">
-                          <Mail className="h-4 w-4 mr-2" />
-                          {booking.bookerName} ({booking.bookerEmail})
-                        </div>
-                        <div className="flex items-center text-sm text-slate-600">
-                          <Phone className="h-4 w-4 mr-2" />
-                          {booking.phoneNumber}
-                        </div>
-                        <div className="text-sm text-slate-500">
-                          {booking.isExsisting ? (
-                            <>
-                              {booking.tokensUsed} token
-                              {booking.tokensUsed !== 1 ? "s" : ""} used
-                            </>
-                          ) : (
-                            "External Booking"
+                        <div className="flex items-center justify-between mt-2">
+                          <div className="text-xs text-slate-400">
+                            Booker ID: {booking.bookerId}
+                          </div>
+                          {booking.isExsisting && (
+                            <div className="text-xs text-slate-400">
+                              User :{" "}
+                              {users.find((user) => user.id === booking.UserID)
+                                ?.name ?? booking.UserID}
+                            </div>
                           )}
                         </div>
                       </div>
-                      <div className="flex items-center justify-between mt-2">
-                        <div className="text-xs text-slate-400">
-                          Booker ID: {booking.bookerId}
-                        </div>
-                        {booking.isExsisting && (
-                          <div className="text-xs text-slate-400">
-                            User :{" "}
-                            {users.find((user) => user.id === booking.UserID)
-                              ?.name ?? booking.UserID}
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
+                    </CardContent>
+                  </Card>
+                );
+              })}
             </div>
           )}
         </div>

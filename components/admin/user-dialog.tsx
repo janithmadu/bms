@@ -208,6 +208,7 @@ export function UserDialog({ open, onOpenChange, user, onSave }: UserDialogProps
                       <SelectItem value="user">User</SelectItem>
                       <SelectItem value="manager">Manager</SelectItem>
                       <SelectItem value="admin">Admin</SelectItem>
+                      <SelectItem value="financeadmin">Finance Admin</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>

@@ -11,7 +11,7 @@ export async function GET() {
 
     if (
       !session ||
-      (session.user.role !== "admin" && session.user.role !== "manager")
+      (session.user.role !== "admin" && session.user.role !== "manager" && session.user.role !== "financeadmin")
     ) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
