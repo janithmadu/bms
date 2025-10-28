@@ -85,7 +85,7 @@ export async function PUT(
     }
 
     // Update booking and adjust tokens
-    const result = ([
+    const result = [
       prisma.booking.update({
         where: { id: params.id },
         data: {
@@ -119,7 +119,7 @@ export async function PUT(
             }),
           ]
         : []),
-    ]);
+    ];
 
     return NextResponse.json(result[0]);
   } catch (error) {
@@ -156,25 +156,31 @@ export async function DELETE(
     }
 
     // Cancel booking and refund tokens
-    await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
-      await tx.booking.delete({
-        where: { id: params.id },
-      });
+    await prisma.$transaction(
+      async (tx) => {
+        await tx.booking.delete({
+          where: { id: params.id },
+        });
 
-      if (booking.status === "cancelled") {
-        if (UserID) {
-          await tx.user.update({
-            where: { id: UserID },
-            data: {
-              tokensAvailable: { increment: booking.tokensUsed },
-              tokensUsed: { decrement: booking.tokensUsed },
-            },
-          });
-        } else {
-          return NextResponse.json({ error: "No User Found" });
-        }
+        // if (booking.status === "cancelled") {
+        //   if (UserID) {
+        //     await tx.user.update({
+        //       where: { id: UserID },
+        //       data: {
+        //         tokensAvailable: { increment: booking.tokensUsed },
+        //         tokensUsed: { decrement: booking.tokensUsed },
+        //       },
+        //     });
+        //   } else {
+        //     throw new Error("No User Found");
+        //   }
+        // }
+      },
+      {
+        timeout: 15000, // ⏱ 15 seconds
+        maxWait: 5000, // Optional: time to wait for a transaction slot
       }
-    });
+    );
 
     return NextResponse.json({ success: true });
   } catch (error) {

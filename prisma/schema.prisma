@@ -10,7 +10,7 @@ datasource db {
 // NextAuth.js Models
 model Account {
   id                String   @id @default(cuid())
-  userId            String    @db.VarChar(5)
+  userId            String   @db.VarChar(5)
   type              String
   provider          String
   providerAccountId String
@@ -37,14 +37,14 @@ model Session {
   expires      DateTime
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
-  
+
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
 }
 
 model User {
-   id              String    @id @default(cuid()) @db.VarChar(5)
+  id              String    @id @default(cuid()) @db.VarChar(5)
   name            String?
   email           String    @unique
   emailVerified   DateTime?
@@ -62,10 +62,10 @@ model User {
   lastTokenReset  DateTime  @default(now())
 
   // Location access for managers and users
-  userLocations   UserLocation[]
+  userLocations UserLocation[]
 
   // Relation with Booking
-  bookings        Booking[]
+  bookings Booking[]
 
   @@index([email])
   @@index([role])
@@ -74,7 +74,7 @@ model User {
 
 model UserLocation {
   id         String   @id @default(cuid())
-  userId     String @db.VarChar(5)
+  userId     String   @db.VarChar(5)
   locationId String
   user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   location   Location @relation(fields: [locationId], references: [id], onDelete: Cascade)
@@ -96,36 +96,36 @@ model VerificationToken {
   @@index([identifier, token])
 }
 
-
 // Application Models
 model Location {
-  id          String      @id @default(cuid())
-  name        String
-  address     String
-  description String?     @db.Text
-  imageUrl    String?     @db.Text
-  createdAt   DateTime    @default(now())
-  updatedAt   DateTime    @updatedAt
-  boardrooms  Boardroom[]
+
+  id            String         @id @default(cuid())
+  name          String
+  address       String
+  description   String?        @db.Text
+  imageUrl      String?
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+  boardrooms    Boardroom[]
   userLocations UserLocation[]
 
   @@index([name])
 }
 
 model Boardroom {
-  id              String    @id @default(cuid())
-  name            String
-  description     String?   @db.Text
-  dimensions      String?   // e.g., "20ft x 15ft"
-  capacity        Int
-  imageUrl        String?  @db.Text
-  facilities      Json      // Using Json type for array of facilities
-  pricingOptions  Json  @default("[]")     // Using Json type for array of pricing options
-  locationId      String
-  location        Location  @relation(fields: [locationId], references: [id], onDelete: Cascade)
-  bookings        Booking[]
-  createdAt       DateTime  @default(now())
-  updatedAt       DateTime  @updatedAt
+  id             String    @id @default(cuid())
+  name           String
+  description    String?   @db.Text
+  dimensions     String? // e.g., "20ft x 15ft"
+  capacity       Int
+  imageUrl       String?   @db.Text
+  facilities     Json // Using Json type for array of facilities
+  pricingOptions Json      @default("[]") // Using Json type for array of pricing options
+  locationId     String
+  location       Location  @relation(fields: [locationId], references: [id], onDelete: Cascade)
+  bookings       Booking[]
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
 
   @@index([locationId])
   @@index([name])
@@ -137,23 +137,25 @@ model Booking {
   eventTitle  String
   bookerName  String
   bookerEmail String
-  date        DateTime  // Date portion only for the booking day
-  startTime   DateTime  // Full datetime for start
-  endTime     DateTime  // Full datetime for end
-  duration    Float     // Duration in hours
+  date        DateTime // Date portion only for the booking day
+  startTime   DateTime // Full datetime for start
+  endTime     DateTime // Full datetime for end
+  duration    Float // Duration in hours
   tokensUsed  Int
   status      String    @default("pending") // pending, confirmed, cancelled
   boardroomId String
   boardroom   Boardroom @relation(fields: [boardroomId], references: [id], onDelete: Cascade)
-  UserID String @default("") @db.VarChar(5)
+  UserID      String    @default("") @db.VarChar(100)
   // Relation with User
-  bookerId    String  @default("7Wcpw") @db.VarChar(5)
-  booker      User      @relation(fields: [bookerId], references: [id], onDelete: Cascade) 
-  isExsisting Boolean @default(false)
+  bookerId    String    @default("7Wcpw") @db.VarChar(5)
+  booker      User      @relation(fields: [bookerId], references: [id], onDelete: Cascade)
+  isExsisting Boolean   @default(false)
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
   phoneNumber String    @default("")
-  price       String     @default("")
+  price       String    @default("")
+  useName     String    @default("") @db.VarChar(100)
+
   @@index([boardroomId])
   @@index([date])
   @@index([startTime, endTime])
@@ -162,14 +164,15 @@ model Booking {
   @@index([createdAt])
   @@index([bookerId])
 }
+
 model Token {
-  id                 String   @id @default("singleton")
-  initialCount       Int      @default(40)
-  availableCount     Int      @default(40)
-  tokensUsedThisMonth Int     @default(0)
-  lastRenewalDate    DateTime @default(now())
-  createdAt          DateTime @default(now())
-  updatedAt          DateTime @updatedAt
+  id                  String   @id @default("singleton")
+  initialCount        Int      @default(40)
+  availableCount      Int      @default(40)
+  tokensUsedThisMonth Int      @default(0)
+  lastRenewalDate     DateTime @default(now())
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
 }
 
 model Business {

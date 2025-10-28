@@ -59,8 +59,19 @@ export async function PUT(request: NextRequest) {
       updateData.tokensAvailable = { increment: additionalTokens }
     }
 
+    const getUser = await prisma.user.findUnique({
+      where:{id:userId}
+    })
+
+   
+    
+
     if (newTokenLimit !== undefined) {
-      updateData.tokenLimit = newTokenLimit
+      const tokensAvailable = getUser?.tokensAvailable ?? 0;
+       const tokensUsed = getUser?.tokensUsed ?? 0;
+       const UpdatedAvalableTokens = newTokenLimit - tokensAvailable - tokensUsed
+      updateData.tokenLimit = newTokenLimit;
+      updateData.tokensAvailable = tokensAvailable + UpdatedAvalableTokens
     }
 
     const updatedUser = await prisma.user.update({

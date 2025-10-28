@@ -7,10 +7,12 @@ export async function POST(
   request: NextRequest,
   { params }: { params: { id: string } }
 ) {
+
+  
   try {
     const session = await getServerSession(authOptions);
     const { UserID } = await request.json();
-
+        console.log(UserID);
     if (!session) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
@@ -19,6 +21,7 @@ export async function POST(
       where: { id: params.id },
     });
 
+    
 
     if (!booking) {
       return NextResponse.json({ error: "Booking not found" }, { status: 404 });
@@ -31,16 +34,13 @@ export async function POST(
       );
     }
 
-    
-    
-
     // Reject booking and refund tokens
     await prisma.$transaction([
       prisma.booking.update({
         where: { id: params.id },
         data: { status: "cancelled" },
       }),
-    prisma.user.update({
+      prisma.user.update({
         where: { id: UserID },
         data: {
           tokensAvailable: { increment: booking.tokensUsed },
