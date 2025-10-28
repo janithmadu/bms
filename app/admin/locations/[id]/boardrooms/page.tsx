@@ -59,6 +59,7 @@ export default function LocationBoardroomsPage() {
   );
 
   const { data: session, status } = useSession();
+  const Role = session?.user.role;
 
   const fetchLocation = async () => {
     try {
@@ -239,6 +240,7 @@ export default function LocationBoardroomsPage() {
           <Button
             onClick={() => setIsDialogOpen(true)}
             className="bg-blue-600 hover:bg-blue-700"
+             disabled={Role !== "admin" && Role !== "manager"}
           >
             <Plus className="h-4 w-4 mr-2" />
             Add Boardroom
@@ -260,6 +262,8 @@ export default function LocationBoardroomsPage() {
               <Button
                 onClick={() => setIsDialogOpen(true)}
                 className="bg-blue-600 hover:bg-blue-700"
+
+                  disabled={Role !== "admin" && Role !== "manager"}
               >
                 <Plus className="h-4 w-4 mr-2" />
                 Add Your First Boardroom
@@ -296,6 +300,7 @@ export default function LocationBoardroomsPage() {
                         onClick={() => handleDuplicate(boardroom)}
                         className="bg-green-500/90 hover:bg-green-600 text-white"
                         title="Duplicate boardroom"
+                         disabled={Role !== "admin" && Role !== "manager"}
                       >
                         <Copy className="h-4 w-4" />
                       </Button>
@@ -304,6 +309,7 @@ export default function LocationBoardroomsPage() {
                         size="sm"
                         onClick={() => handleEdit(boardroom)}
                         className="bg-white/90 hover:bg-white"
+                         disabled={Role !== "admin" && Role !== "manager"}
                       >
                         <Edit className="h-4 w-4" />
                       </Button>
@@ -312,6 +318,8 @@ export default function LocationBoardroomsPage() {
                         size="sm"
                         onClick={() => handleDelete(boardroom.id)}
                         className="bg-red-500/90 hover:bg-red-600"
+                         disabled={Role !== "admin" && Role !== "manager"}
+                        
                       >
                         <Trash2 className="h-4 w-4" />
                       </Button>
@@ -376,6 +384,7 @@ export default function LocationBoardroomsPage() {
                         onClick={() => handleDuplicate(boardroom)}
                         className="flex-1"
                         title="Duplicate boardroom"
+                         disabled={Role !== "admin" && Role !== "manager"}
                       >
                         <Copy className="h-4 w-4 mr-1" />
                         Duplicate
@@ -385,6 +394,7 @@ export default function LocationBoardroomsPage() {
                         size="sm"
                         onClick={() => handleEdit(boardroom)}
                         className="flex-1"
+                         disabled={Role !== "admin" && Role !== "manager"}
                       >
                         <Edit className="h-4 w-4 mr-1" />
                         Edit
@@ -394,6 +404,7 @@ export default function LocationBoardroomsPage() {
                         size="sm"
                         asChild
                         className="flex-1"
+                         disabled={Role !== "admin" && Role !== "manager"}
                       >
                         <Link href={`/booking/${location.id}`}>
                           <Calendar className="h-4 w-4 mr-1" />

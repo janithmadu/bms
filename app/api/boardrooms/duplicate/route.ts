@@ -1,9 +1,19 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import {  Prisma } from "@prisma/client";
+import { Prisma } from "@prisma/client";
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/lib/auth";
 
 export async function POST(request: NextRequest) {
   try {
+    const session = await getServerSession(authOptions);
+
+    if (
+      !session ||
+      (session.user.role !== "admin" && session.user.role !== "manager")
+    ) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
     const { originalBoardroomId, locationId, newName } = await request.json();
 
     // Validate input
@@ -44,7 +54,9 @@ export async function POST(request: NextRequest) {
         imageUrl: originalBoardroom.imageUrl,
         // Convert JsonValue to InputJsonValue
         facilities: JSON.parse(JSON.stringify(originalBoardroom.facilities)),
-        pricingOptions: JSON.parse(JSON.stringify(originalBoardroom.pricingOptions)),
+        pricingOptions: JSON.parse(
+          JSON.stringify(originalBoardroom.pricingOptions)
+        ),
         locationId: locationId,
         createdAt: new Date(),
         updatedAt: new Date(),
@@ -55,7 +67,6 @@ export async function POST(request: NextRequest) {
       ...duplicateBoardroom,
       message: "Boardroom duplicated successfully",
     });
-
   } catch (error) {
     console.error("Duplicate boardroom error:", error);
     return NextResponse.json(

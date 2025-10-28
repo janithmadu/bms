@@ -55,9 +55,6 @@ export async function GET(req: Request) {
       });
     }
 
-
-    
-
     return NextResponse.json(locations);
   } catch (error) {
     console.error("Error fetching locations:", error);
@@ -65,23 +62,27 @@ export async function GET(req: Request) {
       { error: "Failed to fetch locations" },
       { status: 500 }
     );
-  }
-  finally{
-    await prisma.$disconnect()
+  } finally {
+    await prisma.$disconnect();
   }
 }
 
 export async function POST(request: NextRequest) {
-  
   try {
     const session = await getServerSession(authOptions);
+    if (
+      !session ||
+      (session.user.role !== "admin" && session.user.role !== "manager")
+    ) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
 
     if (!session) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    if(session.user.role !== "admin"){
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 }); 
+    if (session.user.role !== "admin") {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
     const body = await request.json();
@@ -103,8 +104,7 @@ export async function POST(request: NextRequest) {
       { error: "Failed to create location" },
       { status: 500 }
     );
-  }
-  finally{
-    await prisma.$disconnect()
+  } finally {
+    await prisma.$disconnect();
   }
 }

@@ -6,9 +6,10 @@ import { authOptions } from '@/lib/auth'
 export async function POST(request: NextRequest) {
   try {
     const session = await getServerSession(authOptions)
-    
-    if (!session) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+     
+
+    if (!session || session.user.role !== "admin" && session.user.role !== "manager") {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
     const body = await request.json()

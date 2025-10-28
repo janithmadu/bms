@@ -7,21 +7,19 @@ export async function POST(
   request: NextRequest,
   { params }: { params: { id: string } }
 ) {
-
-  
   try {
     const session = await getServerSession(authOptions);
     const { UserID } = await request.json();
-        console.log(UserID);
-    if (!session) {
+    if (
+      !session ||
+      (session.user.role !== "admin" && session.user.role !== "manager")
+    ) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
     const booking = await prisma.booking.findUnique({
       where: { id: params.id },
     });
-
-    
 
     if (!booking) {
       return NextResponse.json({ error: "Booking not found" }, { status: 404 });

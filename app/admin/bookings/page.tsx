@@ -75,7 +75,11 @@ interface Booking {
   price?: number;
   phoneNumber: string;
   status: string;
-  financeStatus?: "finance-pending" | "finance-approved" | "finance-rejected"; // ← NEW
+  financeStatus?:
+    | "finance-pending"
+    | "finance-approved"
+    | "finance-rejected"
+    | "finance-approve"; // ← NEW
   boardroom: {
     id: string;
     name: string;
@@ -953,8 +957,9 @@ export default function BookingsPage() {
                             {booking.status}
                           </Badge>
 
-                          <Badge
-                            className={`
+                          {booking.financeStatus !== "finance-approve" && (
+                            <Badge
+                              className={`
     inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-medium
     ${
       booking.financeStatus === "finance-approved"
@@ -966,9 +971,10 @@ export default function BookingsPage() {
         : "bg-gray-100 text-gray-800 border-gray-300"
     }
   `}
-                          >
-                            {booking.financeStatus ?? "N/A"}
-                          </Badge>
+                            >
+                              {booking.financeStatus ?? "N/A"}
+                            </Badge>
+                          )}
 
                           {/* Pending: Internal → Normal Approve/Reject */}
                           {booking.status === "pending" &&

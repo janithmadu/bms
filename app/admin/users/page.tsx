@@ -33,6 +33,7 @@ import {
 } from "lucide-react";
 import { UserDialog } from "@/components/admin/user-dialog";
 import { toast } from "sonner";
+import { useSession } from "next-auth/react";
 
 interface User {
   id: string;
@@ -57,6 +58,8 @@ export default function UsersPage() {
   const [selectedStatus, setSelectedStatus] = useState<string>("all");
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingUser, setEditingUser] = useState<User | null>(null);
+  const { data: session, status } = useSession();
+  const Role = session?.user.role;
 
   const fetchUsers = async () => {
     try {
@@ -210,6 +213,7 @@ export default function UsersPage() {
           <Button
             onClick={() => setIsDialogOpen(true)}
             className="bg-blue-600 hover:bg-blue-700"
+              disabled={Role !== "admin" && Role !== "manager"}
           >
             <Plus className="h-4 w-4 mr-2" />
             Add User
@@ -295,6 +299,7 @@ export default function UsersPage() {
                   <Button
                     onClick={() => setIsDialogOpen(true)}
                     className="bg-blue-600 hover:bg-blue-700"
+                    disabled={Role !== "admin" && Role !== "manager"}
                   >
                     <Plus className="h-4 w-4 mr-2" />
                     Add First User
@@ -339,6 +344,7 @@ export default function UsersPage() {
                               variant="ghost"
                               size="sm"
                               onClick={() => handleEdit(user)}
+                                disabled={Role !== "admin" && Role !== "manager"}
                             >
                               <Edit className="h-4 w-4" />
                             </Button>
@@ -346,6 +352,7 @@ export default function UsersPage() {
                               variant="ghost"
                               size="sm"
                               onClick={() => handleDelete(user.id)}
+                                disabled={Role !== "admin" && Role !== "manager"}
                             >
                               <Trash2 className="h-4 w-4" />
                             </Button>

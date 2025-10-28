@@ -11,7 +11,12 @@ export async function POST(
 ) {
   try {
     const session = await getServerSession(authOptions);
-    if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    if (
+      !session ||
+      (session.user.role !== "admin" && session.user.role !== "manager")
+    ) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
 
     const { id } = params;
 
@@ -20,9 +25,13 @@ export async function POST(
       include: { boardroom: { include: { location: true } } },
     });
 
-    if (!booking) return NextResponse.json({ error: "Booking not found" }, { status: 404 });
+    if (!booking)
+      return NextResponse.json({ error: "Booking not found" }, { status: 404 });
     if (booking.status !== "pending") {
-      return NextResponse.json({ error: "Only pending bookings can be approved" }, { status: 400 });
+      return NextResponse.json(
+        { error: "Only pending bookings can be approved" },
+        { status: 400 }
+      );
     }
 
     const updatedBooking = await prisma.booking.update({
@@ -50,9 +59,11 @@ export async function POST(
     })();
 
     return NextResponse.json(updatedBooking);
-
   } catch (error: any) {
     console.error("Approve booking error:", error);
-    return NextResponse.json({ error: "Failed to approve booking" }, { status: 500 });
+    return NextResponse.json(
+      { error: "Failed to approve booking" },
+      { status: 500 }
+    );
   }
 }

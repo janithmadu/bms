@@ -119,6 +119,7 @@ export default function LocationsPage() {
           <Button
             onClick={() => setIsDialogOpen(true)}
             className="bg-blue-600 hover:bg-blue-700"
+              disabled={Role !== "admin" && Role !== "manager"}
           >
             <Plus className="h-4 w-4 mr-2" />
             Add Location
@@ -139,6 +140,7 @@ export default function LocationsPage() {
               <Button
                 onClick={() => setIsDialogOpen(true)}
                 className="bg-blue-600 hover:bg-blue-700"
+                  disabled={Role !== "admin" && Role !== "manager"}
               >
                 <Plus className="h-4 w-4 mr-2" />
                 Add Your First Location
@@ -166,6 +168,7 @@ export default function LocationsPage() {
                         variant="ghost"
                         size="sm"
                         onClick={() => handleEdit(location)}
+                        disabled={Role !== "admin" && Role !== "manager"}
                       >
                         <Edit className="h-4 w-4" />
                       </Button>
@@ -173,6 +176,7 @@ export default function LocationsPage() {
                         variant="ghost"
                         size="sm"
                         onClick={() => handleDelete(location.id)}
+                           disabled={Role !== "admin" && Role !== "manager"}
                       >
                         <Trash2 className="h-4 w-4" />
                       </Button>
@@ -198,8 +202,8 @@ export default function LocationsPage() {
                       {location.boardrooms.length} boardroom
                       {location.boardrooms.length !== 1 ? "s" : ""}
                     </div>
-                    <Button variant="outline" size="sm" asChild>
-                      <Link href={`/admin/locations/${location.id}/boardrooms`}>
+                    <Button  disabled={Role !== "admin" && Role !== "manager"} variant="outline" size="sm" asChild>
+                      <Link  href={`/admin/locations/${location.id}/boardrooms`}>
                         View Rooms
                       </Link>
                     </Button>
