@@ -65,7 +65,9 @@ export async function POST(request: NextRequest) {
             price: Price ?? "0",
             status: "pending",
             phoneNumber,
-            financeStatus:isExistingUser ? "finance-approve" : "finance-pending",
+            financeStatus: isExistingUser
+              ? "finance-approve"
+              : "finance-pending",
             booker: { connect: { id: bookerId ?? "7Wcpw" } },
             boardroom: { connect: { id: boardroomId ?? "" } },
           },
@@ -123,6 +125,7 @@ export async function POST(request: NextRequest) {
           endTime: completeBooking.endTime.toISOString(),
           boardroomName: completeBooking.boardroom.name,
           locationName: completeBooking.boardroom.location.name,
+          mapUrl: completeBooking.boardroom.location.googleMapsUrl || undefined,
         });
         console.log(`Booking received email sent to ${bookerEmail}`);
       } catch (mailErr) {

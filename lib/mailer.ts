@@ -4,68 +4,79 @@ import nodemailer from "nodemailer";
 // === COMPANY BRANDING FROM .env ===
 const COMPANY_NAME = process.env.COMPANY_NAME || "Boardroom Booking";
 const COMPANY_LOGO_URL = process.env.COMPANY_LOGO_URL || "";
-const SUPPORT_EMAIL = process.env.COMPANY_SUPPORT_EMAIL || "support@yourcompany.com";
+const SUPPORT_EMAIL =
+  process.env.COMPANY_SUPPORT_EMAIL || "support@yourcompany.com";
 
 // === GMAIL SMTP TRANSPORTER ===
 const transporter = nodemailer.createTransport({
-    host: process.env.SMTP_HOST,           // smtp.gmail.com
-    port: Number(process.env.SMTP_PORT),   // 587
-    secure: process.env.SMTP_SECURE === "true", // false for STARTTLS
-    auth: {
-        user: process.env.SMTP_USER,         // your.email@gmail.com
-        pass: process.env.SMTP_PASS,         // 16-char App Password
-    },
-    tls: {
-        rejectUnauthorized: false,
-    },
+  host: process.env.SMTP_HOST, // smtp.gmail.com
+  port: Number(process.env.SMTP_PORT), // 587
+  secure: process.env.SMTP_SECURE === "true", // false for STARTTLS
+  auth: {
+    user: process.env.SMTP_USER, // your.email@gmail.com
+    pass: process.env.SMTP_PASS, // 16-char App Password
+  },
+  tls: {
+    rejectUnauthorized: false,
+  },
 });
 
 // Optional: Verify connection on startup
 if (process.env.NODE_ENV !== "production") {
-    transporter.verify().catch((err) => console.warn("SMTP connection failed:", err));
+  transporter
+    .verify()
+    .catch((err) => console.warn("SMTP connection failed:", err));
 }
 
 // === HELPER: Format Date & Time ===
 function formatDateTime(dateStr: string, timeStr: string) {
-    const date = new Date(dateStr).toLocaleDateString("en-US", {
-        weekday: "long",
-        year: "numeric",
-        month: "long",
-        day: "numeric",
-    });
-    const time = new Date(timeStr).toLocaleTimeString("en-US", {
-        hour: "2-digit",
-        minute: "2-digit",
-    });
-    return { date, time };
+  const date = new Date(dateStr).toLocaleDateString("en-US", {
+    weekday: "long",
+    year: "numeric",
+    month: "long",
+    day: "numeric",
+  });
+  const time = new Date(timeStr).toLocaleTimeString("en-US", {
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+  return { date, time };
 }
 
 // === 1. BOOKING RECEIVED EMAIL ===
 export async function sendBookingReceivedEmail({
-    to,
-    bookerName,
-    eventTitle,
-    date,
-    startTime,
-    endTime,
-    boardroomName,
-    locationName,
+  to,
+  bookerName,
+  eventTitle,
+  date,
+  startTime,
+  endTime,
+  boardroomName,
+  locationName,
+  mapUrl,
 }: {
-    to: string;
-    bookerName: string;
-    eventTitle: string;
-    date: string;
-    startTime: string;
-    endTime: string;
-    boardroomName: string;
-    locationName: string;
+  to: string;
+  bookerName: string;
+  eventTitle: string;
+  date: string;
+  startTime: string;
+  endTime: string;
+  boardroomName: string;
+  locationName: string;
+  mapUrl?: string;
 }) {
-    const { date: fmtDate, time: start } = formatDateTime(date, startTime);
-    const { time: end } = formatDateTime(endTime, endTime);
+  const { date: fmtDate, time: start } = formatDateTime(date, startTime);
+  const { time: end } = formatDateTime(endTime, endTime);
 
-    const html = `
+  const html = `
     <div style="font-family: Arial, sans-serif; max-width: 600px; margin: auto; padding: 20px; border: 1px solid #e0e0e0; border-radius: 10px; background: #fff;">
-      ${COMPANY_LOGO_URL ? `<div style="text-align: center; margin-bottom: 20px;"><img src="${COMPANY_LOGO_URL}" alt="${COMPANY_NAME}" width="120" style="max-width: 100%; height: auto;" /></div>` : ""}
+      ${
+        COMPANY_LOGO_URL
+          ? `<div style="text-align: center; margin-bottom: 20px;">
+              <img src="${COMPANY_LOGO_URL}" alt="${COMPANY_NAME}" width="120" style="max-width: 100%; height: auto;" />
+            </div>`
+          : ""
+      }
       
       <h2 style="color: #1a1a1a; text-align: center; margin-top: 0;">Booking Request Received</h2>
       
@@ -80,7 +91,11 @@ export async function sendBookingReceivedEmail({
           <li><strong>Date:</strong> ${fmtDate}</li>
           <li><strong>Time:</strong> ${start} – ${end}</li>
           <li><strong>Boardroom:</strong> ${boardroomName}</li>
-          <li><strong>Location:</strong> ${locationName}</li>
+          <li><strong>Location:</strong> ${locationName}${
+    mapUrl
+      ? ` – <a href="${mapUrl}" target="_blank" rel="noopener noreferrer" style="color: #1a90ff; text-decoration: none;">View on Map</a>`
+      : ""
+  }</li>
         </ul>
       </div>
       
@@ -103,41 +118,47 @@ export async function sendBookingReceivedEmail({
     </div>
   `;
 
-    await transporter.sendMail({
-        from: `"${COMPANY_NAME}" <${process.env.SMTP_FROM}>`,
-        to,
-        replyTo: SUPPORT_EMAIL,
-        subject: `Booking Request Received – ${eventTitle}`,
-        html,
-    });
+  await transporter.sendMail({
+    from: `"${COMPANY_NAME}" <${process.env.SMTP_FROM}>`,
+    to,
+    replyTo: SUPPORT_EMAIL,
+    subject: `Booking Request Received – ${eventTitle}`,
+    html,
+  });
 }
 
 // === 2. BOOKING CONFIRMED EMAIL ===
 export async function sendBookingConfirmedEmail({
-    to,
-    bookerName,
-    eventTitle,
-    date,
-    startTime,
-    endTime,
-    boardroomName,
-    locationName,
+  to,
+  bookerName,
+  eventTitle,
+  date,
+  startTime,
+  endTime,
+  boardroomName,
+  locationName,
+  mapUrl,
 }: {
-    to: string;
-    bookerName: string;
-    eventTitle: string;
-    date: string;
-    startTime: string;
-    endTime: string;
-    boardroomName: string;
-    locationName: string;
+  to: string;
+  bookerName: string;
+  eventTitle: string;
+  date: string;
+  startTime: string;
+  endTime: string;
+  boardroomName: string;
+  locationName: string;
+  mapUrl?: string;
 }) {
-    const { date: fmtDate, time: start } = formatDateTime(date, startTime);
-    const { time: end } = formatDateTime(endTime, endTime);
+  const { date: fmtDate, time: start } = formatDateTime(date, startTime);
+  const { time: end } = formatDateTime(endTime, endTime);
 
-    const html = `
+  const html = `
     <div style="font-family: Arial, sans-serif; max-width: 600px; margin: auto; padding: 20px; border: 1px solid #e0e0e0; border-radius: 10px; background: #fff;">
-      ${COMPANY_LOGO_URL ? `<div style="text-align: center; margin-bottom: 20px;"><img src="${COMPANY_LOGO_URL}" alt="${COMPANY_NAME}" width="120" style="max-width: 100%; height: auto;" /></div>` : ""}
+      ${
+        COMPANY_LOGO_URL
+          ? `<div style="text-align: center; margin-bottom: 20px;"><img src="${COMPANY_LOGO_URL}" alt="${COMPANY_NAME}" width="120" style="max-width: 100%; height: auto;" /></div>`
+          : ""
+      }
       
       <h2 style="color: #16a34a; text-align: center; margin-top: 0;">Booking Confirmed!</h2>
       
@@ -152,7 +173,11 @@ export async function sendBookingConfirmedEmail({
           <li><strong>Date:</strong> ${fmtDate}</li>
           <li><strong>Time:</strong> ${start} – ${end}</li>
           <li><strong>Boardroom:</strong> ${boardroomName}</li>
-          <li><strong>Location:</strong> ${locationName}</li>
+           <li><strong>Location:</strong> ${locationName}${
+    mapUrl
+      ? ` – <a href="${mapUrl}" target="_blank" rel="noopener noreferrer" style="color: #1a90ff; text-decoration: none;">View on Map</a>`
+      : ""
+  }</li>
         </ul>
       </div>
       
@@ -174,41 +199,47 @@ export async function sendBookingConfirmedEmail({
     </div>
   `;
 
-    await transporter.sendMail({
-        from: `"${COMPANY_NAME}" <${process.env.SMTP_FROM}>`,
-        to,
-        replyTo: SUPPORT_EMAIL,
-        subject: `Booking Confirmed: ${eventTitle}`,
-        html,
-    });
+  await transporter.sendMail({
+    from: `"${COMPANY_NAME}" <${process.env.SMTP_FROM}>`,
+    to,
+    replyTo: SUPPORT_EMAIL,
+    subject: `Booking Confirmed: ${eventTitle}`,
+    html,
+  });
 }
 
 // === 3. BOOKING CANCELLED EMAIL ===
 export async function sendBookingCancelledEmail({
-    to,
-    bookerName,
-    eventTitle,
-    date,
-    startTime,
-    endTime,
-    boardroomName,
-    locationName,
+  to,
+  bookerName,
+  eventTitle,
+  date,
+  startTime,
+  endTime,
+  boardroomName,
+  locationName,
+  mapUrl,
 }: {
-    to: string;
-    bookerName: string;
-    eventTitle: string;
-    date: string;
-    startTime: string;
-    endTime: string;
-    boardroomName: string;
-    locationName: string;
+  to: string;
+  bookerName: string;
+  eventTitle: string;
+  date: string;
+  startTime: string;
+  endTime: string;
+  boardroomName: string;
+  locationName: string;
+  mapUrl?: string;
 }) {
-    const { date: fmtDate, time: start } = formatDateTime(date, startTime);
-    const { time: end } = formatDateTime(endTime, endTime);
+  const { date: fmtDate, time: start } = formatDateTime(date, startTime);
+  const { time: end } = formatDateTime(endTime, endTime);
 
-    const html = `
+  const html = `
     <div style="font-family: Arial, sans-serif; max-width: 600px; margin: auto; padding: 20px; border: 1px solid #e0e0e0; border-radius: 10px; background: #fff;">
-      ${COMPANY_LOGO_URL ? `<div style="text-align: center; margin-bottom: 20px;"><img src="${COMPANY_LOGO_URL}" alt="${COMPANY_NAME}" width="120" style="max-width: 100%; height: auto;" /></div>` : ""}
+      ${
+        COMPANY_LOGO_URL
+          ? `<div style="text-align: center; margin-bottom: 20px;"><img src="${COMPANY_LOGO_URL}" alt="${COMPANY_NAME}" width="120" style="max-width: 100%; height: auto;" /></div>`
+          : ""
+      }
       
       <h2 style="color: #dc2626; text-align: center; margin-top: 0;">Booking Cancelled</h2>
       
@@ -223,7 +254,11 @@ export async function sendBookingCancelledEmail({
           <li><strong>Date:</strong> ${fmtDate}</li>
           <li><strong>Time:</strong> ${start} – ${end}</li>
           <li><strong>Boardroom:</strong> ${boardroomName}</li>
-          <li><strong>Location:</strong> ${locationName}</li>
+           <li><strong>Location:</strong> ${locationName}${
+    mapUrl
+      ? ` – <a href="${mapUrl}" target="_blank" rel="noopener noreferrer" style="color: #1a90ff; text-decoration: none;">View on Map</a>`
+      : ""
+  }</li>
         </ul>
       </div>
       
@@ -241,41 +276,47 @@ export async function sendBookingCancelledEmail({
     </div>
   `;
 
-    await transporter.sendMail({
-        from: `"${COMPANY_NAME}" <${process.env.SMTP_FROM}>`,
-        to,
-        replyTo: SUPPORT_EMAIL,
-        subject: `Booking Cancelled: ${eventTitle}`,
-        html,
-    });
+  await transporter.sendMail({
+    from: `"${COMPANY_NAME}" <${process.env.SMTP_FROM}>`,
+    to,
+    replyTo: SUPPORT_EMAIL,
+    subject: `Booking Cancelled: ${eventTitle}`,
+    html,
+  });
 }
 
 // === 4. BOOKING RE-CONFIRMED EMAIL ===
 export async function sendBookingReconfirmedEmail({
-    to,
-    bookerName,
-    eventTitle,
-    date,
-    startTime,
-    endTime,
-    boardroomName,
-    locationName,
+  to,
+  bookerName,
+  eventTitle,
+  date,
+  startTime,
+  endTime,
+  boardroomName,
+  locationName,
+  mapUrl,
 }: {
-    to: string;
-    bookerName: string;
-    eventTitle: string;
-    date: string;
-    startTime: string;
-    endTime: string;
-    boardroomName: string;
-    locationName: string;
+  to: string;
+  bookerName: string;
+  eventTitle: string;
+  date: string;
+  startTime: string;
+  endTime: string;
+  boardroomName: string;
+  locationName: string;
+  mapUrl?: string;
 }) {
-    const { date: fmtDate, time: start } = formatDateTime(date, startTime);
-    const { time: end } = formatDateTime(endTime, endTime);
+  const { date: fmtDate, time: start } = formatDateTime(date, startTime);
+  const { time: end } = formatDateTime(endTime, endTime);
 
-    const html = `
+  const html = `
     <div style="font-family: Arial, sans-serif; max-width: 600px; margin: auto; padding: 20px; border: 1px solid #e0e0e0; border-radius: 10px; background: #fff;">
-      ${COMPANY_LOGO_URL ? `<div style="text-align: center; margin-bottom: 20px;"><img src="${COMPANY_LOGO_URL}" alt="${COMPANY_NAME}" width="120" style="max-width: 100%; height: auto;" /></div>` : ""}
+      ${
+        COMPANY_LOGO_URL
+          ? `<div style="text-align: center; margin-bottom: 20px;"><img src="${COMPANY_LOGO_URL}" alt="${COMPANY_NAME}" width="120" style="max-width: 100%; height: auto;" /></div>`
+          : ""
+      }
       
       <h2 style="color: #16a34a; text-align: center; margin-top: 0;">Booking Re-Confirmed!</h2>
       
@@ -290,7 +331,11 @@ export async function sendBookingReconfirmedEmail({
           <li><strong>Date:</strong> ${fmtDate}</li>
           <li><strong>Time:</strong> ${start} – ${end}</li>
           <li><strong>Boardroom:</strong> ${boardroomName}</li>
-          <li><strong>Location:</strong> ${locationName}</li>
+          <li><strong>Location:</strong> ${locationName}${
+    mapUrl
+      ? ` – <a href="${mapUrl}" target="_blank" rel="noopener noreferrer" style="color: #1a90ff; text-decoration: none;">View on Map</a>`
+      : ""
+  }</li>
         </ul>
       </div>
       
@@ -308,11 +353,11 @@ export async function sendBookingReconfirmedEmail({
     </div>
   `;
 
-    await transporter.sendMail({
-        from: `"${COMPANY_NAME}" <${process.env.SMTP_FROM}>`,
-        to,
-        replyTo: SUPPORT_EMAIL,
-        subject: `Booking Re-Confirmed: ${eventTitle}`,
-        html,
-    });
+  await transporter.sendMail({
+    from: `"${COMPANY_NAME}" <${process.env.SMTP_FROM}>`,
+    to,
+    replyTo: SUPPORT_EMAIL,
+    subject: `Booking Re-Confirmed: ${eventTitle}`,
+    html,
+  });
 }

@@ -16,8 +16,10 @@ export async function PUT(
   try {
     const session = await getServerSession(authOptions);
 
-
-    if (!session || session.user.role !== "admin" && session.user.role !== "manager") {
+    if (
+      !session ||
+      (session.user.role !== "admin" && session.user.role !== "manager")
+    ) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
@@ -106,6 +108,7 @@ export async function PUT(
       endTime: existingBooking.endTime.toISOString(),
       boardroomName: existingBooking.boardroom.name,
       locationName: existingBooking.boardroom.location.name,
+      mapUrl: existingBooking.boardroom.location.googleMapsUrl || undefined,
     };
 
     (async () => {
@@ -113,7 +116,10 @@ export async function PUT(
         if (toStatus === "confirmed" && fromStatus === "pending") {
           await sendBookingConfirmedEmail(emailData);
           console.log("Confirmed email sent");
-        } else if (toStatus === "cancelled" && ["pending", "confirmed"].includes(fromStatus)) {
+        } else if (
+          toStatus === "cancelled" &&
+          ["pending", "confirmed"].includes(fromStatus)
+        ) {
           await sendBookingCancelledEmail(emailData);
           console.log("Cancelled email sent");
         } else if (toStatus === "confirmed" && fromStatus === "cancelled") {
@@ -126,7 +132,6 @@ export async function PUT(
     })();
 
     return NextResponse.json(updatedBooking);
-
   } catch (error: any) {
     console.error("Error updating booking status:", error);
     return NextResponse.json(

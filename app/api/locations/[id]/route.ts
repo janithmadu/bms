@@ -74,7 +74,7 @@ export async function PUT(
     }
 
     const body = await request.json();
-    const { name, address, description, imageUrl } = body;
+    const { name, address, description, imageUrl, googleMapsUrl } = body;
 
     const location = await prisma.location.update({
       where: { id: params.id },
@@ -83,6 +83,7 @@ export async function PUT(
         address,
         description,
         imageUrl,
+        googleMapsUrl: googleMapsUrl || null,
       },
     });
 
@@ -103,7 +104,7 @@ export async function DELETE(
   { params }: { params: { id: string } }
 ) {
   try {
-        const session = await getServerSession(authOptions);
+    const session = await getServerSession(authOptions);
     if (
       !session ||
       (session.user.role !== "admin" && session.user.role !== "manager")

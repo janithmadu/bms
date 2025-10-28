@@ -86,7 +86,8 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { name, address, description, imageUrl } = body;
+
+    const { name, address, description, imageUrl, GoogleMapUrl } = body;
 
     const location = await prisma.location.create({
       data: {
@@ -94,6 +95,7 @@ export async function POST(request: NextRequest) {
         address,
         description,
         imageUrl,
+        googleMapsUrl: GoogleMapUrl || null,
       },
     });
 

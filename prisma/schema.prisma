@@ -98,12 +98,12 @@ model VerificationToken {
 
 // Application Models
 model Location {
-
   id            String         @id @default(cuid())
   name          String
   address       String
   description   String?        @db.Text
-  imageUrl      String?         @db.Text
+  imageUrl      String?        @db.Text
+  googleMapsUrl String?        @db.Text
   createdAt     DateTime       @default(now())
   updatedAt     DateTime       @updatedAt
   boardrooms    Boardroom[]
@@ -133,29 +133,29 @@ model Boardroom {
 }
 
 model Booking {
-  id          String    @id @default(cuid())
-  eventTitle  String
-  bookerName  String
-  bookerEmail String
-  date        DateTime // Date portion only for the booking day
-  startTime   DateTime // Full datetime for start
-  endTime     DateTime // Full datetime for end
-  duration    Float // Duration in hours
-  tokensUsed  Int
-  status      String    @default("pending") // pending, confirmed, cancelled
-  boardroomId String
-  boardroom   Boardroom @relation(fields: [boardroomId], references: [id], onDelete: Cascade)
-  UserID      String    @default("") @db.VarChar(100)
+  id            String    @id @default(cuid())
+  eventTitle    String
+  bookerName    String
+  bookerEmail   String
+  date          DateTime // Date portion only for the booking day
+  startTime     DateTime // Full datetime for start
+  endTime       DateTime // Full datetime for end
+  duration      Float // Duration in hours
+  tokensUsed    Int
+  status        String    @default("pending") // pending, confirmed, cancelled
+  boardroomId   String
+  boardroom     Boardroom @relation(fields: [boardroomId], references: [id], onDelete: Cascade)
+  UserID        String    @default("") @db.VarChar(100)
   // Relation with User
-  bookerId    String    @default("7Wcpw") @db.VarChar(5)
-  booker      User      @relation(fields: [bookerId], references: [id], onDelete: Cascade)
-  isExsisting Boolean   @default(false)
+  bookerId      String    @default("7Wcpw") @db.VarChar(5)
+  booker        User      @relation(fields: [bookerId], references: [id], onDelete: Cascade)
+  isExsisting   Boolean   @default(false)
   financeStatus String    @default("")
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
-  phoneNumber String    @default("")
-  price       String    @default("")
-  useName     String    @default("") @db.VarChar(100)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  phoneNumber   String    @default("")
+  price         String    @default("")
+  useName       String    @default("") @db.VarChar(100)
 
   @@index([boardroomId])
   @@index([date])

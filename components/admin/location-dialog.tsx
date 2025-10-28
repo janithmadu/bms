@@ -1,98 +1,109 @@
-"use client"
+"use client";
 
-import { useState, useEffect } from 'react'
-import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
-import { Textarea } from '@/components/ui/textarea'
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
-import { CldUploadWidget } from 'next-cloudinary'
-import { Upload, X } from 'lucide-react'
-import { toast } from 'sonner'
+import { useState, useEffect } from "react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { toast } from "sonner";
 
 interface LocationDialogProps {
-  open: boolean
-  onOpenChange: (open: boolean) => void
-  location?: any
-  onSave: () => void
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  location?: any;
+  onSave: () => void;
 }
 
-export function LocationDialog({ open, onOpenChange, location, onSave }: LocationDialogProps) {
+export function LocationDialog({
+  open,
+  onOpenChange,
+  location,
+  onSave,
+}: LocationDialogProps) {
   const [formData, setFormData] = useState({
-    name: '',
-    address: '',
-    description: '',
-    imageUrl: ''
-  })
-  const [isLoading, setIsLoading] = useState(false)
+    name: "",
+    address: "",
+    description: "",
+    imageUrl: "",
+    googleMapsUrl: "", // ← NEW FIELD
+  });
+  const [isLoading, setIsLoading] = useState(false);
 
   useEffect(() => {
     if (location) {
       setFormData({
-        name: location.name || '',
-        address: location.address || '',
-        description: location.description || '',
-        imageUrl: location.imageUrl || ''
-      })
+        name: location.name || "",
+        address: location.address || "",
+        description: location.description || "",
+        imageUrl: location.imageUrl || "",
+        googleMapsUrl: location.googleMapsUrl || "", // ← Load if exists
+      });
     } else {
       setFormData({
-        name: '',
-        address: '',
-        description: '',
-        imageUrl: ''
-      })
+        name: "",
+        address: "",
+        description: "",
+        imageUrl: "",
+        googleMapsUrl: "",
+      });
     }
-  }, [location, open])
+  }, [location, open]);
 
   const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    setIsLoading(true)
+    e.preventDefault();
+    setIsLoading(true);
 
     try {
-      const url = location ? `/api/locations/${location.id}` : '/api/locations'
-      const method = location ? 'PUT' : 'POST'
+      const url = location ? `/api/locations/${location.id}` : "/api/locations";
+      const method = location ? "PUT" : "POST";
 
       const response = await fetch(url, {
         method,
         headers: {
-          'Content-Type': 'application/json',
+          "Content-Type": "application/json",
         },
         body: JSON.stringify(formData),
-      })
+      });
 
       if (response.ok) {
-        toast.success(`Location ${location ? 'updated' : 'created'} successfully`)
-        onSave()
+        toast.success(
+          `Location ${location ? "updated" : "created"} successfully`
+        );
+        onSave();
+        onOpenChange(false);
       } else {
-        const data = await response.json()
-        toast.error(data.error)
-        // throw new Error(`Failed to ${location ? 'update' : 'create'} location`)
-        
+        const data = await response.json();
+        toast.error(data.error || "Something went wrong");
       }
     } catch (error) {
-      console.error('Error saving location:', error)
-      toast.error(`Failed to ${location ? 'update' : 'create'} location`)
+      console.error("Error saving location:", error);
+      toast.error(`Failed to ${location ? "update" : "create"} location`);
     } finally {
-      setIsLoading(false)
+      setIsLoading(false);
     }
-  }
+  };
 
-  const handleImageUpload = (result: any) => {
-    setFormData({ ...formData, imageUrl: result.info.secure_url })
-  }
+  console.log(formData);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[425px]">
         <DialogHeader>
           <DialogTitle>
-            {location ? 'Edit Location' : 'Add New Location'}
+            {location ? "Edit Location" : "Add New Location"}
           </DialogTitle>
           <DialogDescription>
-            {location 
-              ? 'Update the location information below.'
-              : 'Fill in the details to create a new location.'
-            }
+            {location
+              ? "Update the location information below."
+              : "Fill in the details to create a new location."}
           </DialogDescription>
         </DialogHeader>
         <form onSubmit={handleSubmit}>
@@ -102,37 +113,73 @@ export function LocationDialog({ open, onOpenChange, location, onSave }: Locatio
               <Input
                 id="name"
                 value={formData.name}
-                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                onChange={(e) =>
+                  setFormData({ ...formData, name: e.target.value })
+                }
                 placeholder="Enter location name"
                 required
               />
             </div>
+
             <div className="grid gap-2">
               <Label htmlFor="address">Address</Label>
               <Input
                 id="address"
                 value={formData.address}
-                onChange={(e) => setFormData({ ...formData, address: e.target.value })}
+                onChange={(e) =>
+                  setFormData({ ...formData, address: e.target.value })
+                }
                 placeholder="Enter full address"
                 required
               />
             </div>
+
+            {/* NEW: Google Maps URL Input */}
+            <div className="grid gap-2">
+              <Label htmlFor="googleMapsUrl">Google Maps URL (Optional)</Label>
+              <Input
+                id="googleMapsUrl"
+                value={formData.googleMapsUrl}
+                onChange={(e) =>
+                  setFormData({ ...formData, googleMapsUrl: e.target.value })
+                }
+                placeholder="e.g. https://maps.app.goo.gl/abc123"
+              />
+              {formData.googleMapsUrl && (
+                <p className="text-xs text-muted-foreground">
+                  <a
+                    href={formData.googleMapsUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="underline hover:text-primary"
+                  >
+                    Open in Google Maps
+                  </a>
+                </p>
+              )}
+            </div>
+
             <div className="grid gap-2">
               <Label htmlFor="description">Description</Label>
               <Textarea
                 id="description"
                 value={formData.description}
-                onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                onChange={(e) =>
+                  setFormData({ ...formData, description: e.target.value })
+                }
                 placeholder="Optional description"
                 rows={3}
               />
             </div>
+
             <div className="grid gap-2">
               <Label>Image URL (Optional)</Label>
               <Input
                 value={formData.imageUrl}
-                onChange={(e) => setFormData({ ...formData, imageUrl: e.target.value })}
-                placeholder="Enter image URL or upload after creating location"
+                onChange={(e) =>
+                  setFormData({ ...formData, imageUrl: e.target.value })
+                }
+                placeholder="Enter image URL"
               />
               {formData.imageUrl && (
                 <img
@@ -143,16 +190,21 @@ export function LocationDialog({ open, onOpenChange, location, onSave }: Locatio
               )}
             </div>
           </div>
+
           <DialogFooter>
-            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => onOpenChange(false)}
+            >
               Cancel
             </Button>
             <Button type="submit" disabled={isLoading}>
-              {isLoading ? 'Saving...' : location ? 'Update' : 'Create'}
+              {isLoading ? "Saving..." : location ? "Update" : "Create"}
             </Button>
           </DialogFooter>
         </form>
       </DialogContent>
     </Dialog>
-  )
+  );
 }
