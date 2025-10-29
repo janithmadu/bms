@@ -1,17 +1,16 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import crypto from 'crypto';
 
-export async function POST(req: { url: string | URL; json: () => any; }) {
+export async function POST(req: NextRequest) {
   const { searchParams } = new URL(req.url);
   const action = searchParams.get('action');
   const body = await req.json();
 
   console.log(action);
-  
 
-  const merchant_id = process.env.MERCHANT_ID;
+  const merchant_id = process.env.MERCHANT_ID!;
   const merchant_secret = process.env.MERCHANT_SECRET;
-  
+
   if (!merchant_secret) {
     throw new Error('MERCHANT_SECRET environment variable is not set');
   }
@@ -41,10 +40,7 @@ export async function POST(req: { url: string | URL; json: () => any; }) {
 
   // Verify payment notification
   if (action === 'notify') {
-    const { order_id, payhere_amount, payhere_currency, status_code, md5sig } =
-      body;
-
-      
+    const { order_id, payhere_amount, payhere_currency, status_code, md5sig } = body;
 
     const local_md5sig = crypto
       .createHash('md5')
