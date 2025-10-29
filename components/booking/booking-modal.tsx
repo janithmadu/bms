@@ -1,3 +1,4 @@
+// components/BookingModal.tsx
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
@@ -18,7 +19,7 @@ import {
   DialogTitle,
   DialogDescription,
 } from "@/components/ui/dialog";
-import { MapPin } from "lucide-react";
+import { MapPin, Calendar, Clock, CheckCircle, CreditCard } from "lucide-react";
 
 import BoardroomDetails from "./BoardroomDetails";
 import DateSelector from "./DateSelector";
@@ -26,8 +27,8 @@ import TimeSlotSelector from "./TimeSlotSelector";
 import BookingForm from "./BookingForm";
 import BookingSummary from "./BookingSummary";
 import { StepPill } from "./StepPill";
-import { Calendar, Clock, CheckCircle } from "lucide-react";
 import { SkeletonLoader } from "../SkeletonLoader";
+import PaymentStep from "./PaymentStep";
 
 interface BookingModalProps {
   open: boolean;
@@ -73,6 +74,7 @@ export function BookingModal({
 
   const [isLoading, setIsLoading] = useState(false);
 
+  // Reset on open
   useEffect(() => {
     if (open) {
       setStep(1);
@@ -83,10 +85,17 @@ export function BookingModal({
       setUserId("");
       setTokenData(null);
       setexsistingBookingDetials([]);
+      setFormData({
+        eventTitle: "",
+        bookerName: "",
+        bookerEmail: "",
+        phoneNumber: "",
+      });
       fetchBoardroomBookings();
     }
   }, [open, boardroom?.id]);
 
+  // Token calculation
   useEffect(() => {
     if (isExistingUser && tokenData && selectedDuration) {
       const hours = selectedDuration / 60;
@@ -118,23 +127,23 @@ export function BookingModal({
   const fetchBoardroomBookings = async () => {
     if (!boardroom?.id) return;
     try {
+      setIsLoading(true);
       const res = await fetch(`/api/boardrooms/${boardroom.id}`);
-      if (!res.ok) return;
+      if (!res.ok) {
+        setExistingBookings([]);
+        setexsistingBookingDetials([]);
+        return;
+      }
       const data = await res.json();
       setexsistingBookingDetials(data);
       setExistingBookings(data.bookings || []);
     } catch (err) {
       console.error("fetchBoardroomBookings error:", err);
-    }
-  };
-
-  useEffect(() => {
-    if (exsistingBookingDetials.length === 0) {
-      setIsLoading(true);
-    } else {
+      setExistingBookings([]);
+    } finally {
       setIsLoading(false);
     }
-  }, [exsistingBookingDetials]);
+  };
 
   const generateTimeSlots = (intervalMinutes = 30) => {
     const slots: string[] = [];
@@ -207,29 +216,100 @@ export function BookingModal({
     return choices.filter((dur) => isStartAvailableForDuration(startHHMM, dur));
   };
 
+  const formattedSelectedDate = selectedDate
+    ? format(selectedDate, "MMMM d, yyyy")
+    : "";
+
+  const paymentData = useMemo(() => {
+    if (!selectedDate || !selectedStart || !selectedDuration) return null;
+
+    const hours = selectedDuration / 60;
+    const match = boardroom?.pricingOptions?.find(
+      (opt: any) =>
+        parseInt(opt.timeRange) === hours &&
+        selectedPriceOption === opt.seatingArrangement
+    );
+
+    const price = match ? match.price : "0.00";
+
+    return {
+      orderId: `BRD-${boardroom.id}-${Date.now()}`,
+      boardroom,
+      formattedDate: formattedSelectedDate,
+      selectedStart,
+      selectedDuration,
+      price,
+      formData,
+    };
+  }, [
+    selectedDate,
+    selectedStart,
+    selectedDuration,
+    boardroom,
+    selectedPriceOption,
+    formData,
+    formattedSelectedDate,
+  ]);
+
+  // VALIDATE BEFORE GOING TO NEXT STEP
+  const goToNextStep = () => {
+    if (step === 1) {
+      if (!selectedDate) {
+        toast.error("Please select a date");
+        return false;
+      }
+      if (isExistingUser && !userId.trim()) {
+        toast.error("Please enter User ID for existing user");
+        return false;
+      }
+    }
+
+    if (step === 2) {
+      if (!selectedStart || !selectedDuration) {
+        toast.error("Please select a start time and duration");
+        return false;
+      }
+    }
+
+    if (step === 3) {
+      // Validate form
+      if (!formData.eventTitle.trim()) {
+        toast.error("Event title is required");
+        return false;
+      }
+      if (!formData.bookerName.trim()) {
+        toast.error("Name is required");
+        return false;
+      }
+      if (
+        !formData.bookerEmail.trim() ||
+        !/\S+@\S+\.\S+/.test(formData.bookerEmail)
+      ) {
+        toast.error("Valid email is required");
+        return false;
+      }
+      if (
+        !formData.phoneNumber.trim() ||
+        !/^\d{10}$/.test(formData.phoneNumber.replace(/\D/g, ""))
+      ) {
+        toast.error("Valid 10-digit phone number is required");
+        return false;
+      }
+    }
+
+    return true;
+  };
+
+  // FINAL BOOKING + PAYMENT LOGIC
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!selectedDate || !selectedStart || !selectedDuration) {
-      toast.error("Please complete all selections");
-      return;
-    }
-    if (isExistingUser && !userId.trim()) {
-      toast.error("User ID required for existing users");
-      return;
-    }
-    if (
-      isExistingUser &&
-      tokenData &&
-      tokensRequired > tokenData.tokensAvailable
-    ) {
-      toast.error("Insufficient tokens for this booking");
-      return;
-    }
+
+    if (!goToNextStep()) return;
 
     setIsLoading(true);
     try {
-      const start = parseTimeToDate(selectedDate, selectedStart);
-      const end = new Date(start.getTime() + selectedDuration * 60 * 1000);
+      const start = parseTimeToDate(selectedDate!, selectedStart!);
+      const end = new Date(start.getTime() + selectedDuration! * 60 * 1000);
 
       if (intervalOverlaps(start, end)) {
         toast.error("Selected slot conflicts with an existing booking");
@@ -237,55 +317,53 @@ export function BookingModal({
         return;
       }
 
-      const hours = selectedDuration / 60;
-      interface PricingOption {
-        timeRange: string;
-        seatingArrangement: string;
-      }
-
-      const match =
-        boardroom?.pricingOptions !== null &&
-        boardroom?.pricingOptions.find(
-          (opt: PricingOption) =>
-            parseInt(opt.timeRange) === hours &&
-            selectedPriceOption === opt.seatingArrangement
-        );
+      const hours = selectedDuration! / 60;
+      const match = boardroom?.pricingOptions?.find(
+        (opt: any) =>
+          parseInt(opt.timeRange) === hours &&
+          selectedPriceOption === opt.seatingArrangement
+      );
 
       const resp = await fetch("/api/bookings", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           ...formData,
-          date: selectedDate.toISOString(),
+          date: selectedDate!.toISOString(),
           startTime: start.toISOString(),
           endTime: end.toISOString(),
           boardroomId: boardroom.id,
           isExistingUser,
           UserID: isExistingUser ? userId : null,
           Price: !match ? "0" : match.price,
+          orderID: paymentData?.orderId || "",
         }),
       });
 
-      if (resp.ok) {
-        toast.success("Booking confirmed!");
-        setFormData({
-          eventTitle: "",
-          bookerName: "",
-          bookerEmail: "",
-          phoneNumber: "",
-        });
-        setUserId("");
-        setIsExistingUser(false);
-        setSelectedStart(null);
-        setSelectedDuration(null);
-        setStep(1);
-        onOpenChange(false);
-      } else {
+      if (!resp.ok) {
         const err = await resp.json();
-        console.log(err);
-
         toast.error(err?.error || "Failed to create booking");
+        setIsLoading(false);
+        return;
       }
+
+      toast.success("Booking saved!");
+
+      const price = paymentData?.price || "0.00";
+      const isFree =
+        price === "0.00" ||
+        (isExistingUser &&
+          tokenData &&
+          tokensRequired <= tokenData.tokensAvailable);
+
+      if (isFree) {
+        toast.success("Booking confirmed – no payment needed!");
+        onOpenChange(false);
+        return;
+      }
+
+      // Only external users go to payment
+      setStep(4);
     } catch (err) {
       toast.error("Failed to create booking");
     } finally {
@@ -298,10 +376,6 @@ export function BookingModal({
     const maxDate = addDays(today, 30);
     return date >= today && date <= maxDate;
   };
-
-  const formattedSelectedDate = selectedDate
-    ? format(selectedDate, "MMMM d, yyyy")
-    : "";
 
   if (isLoading) {
     return (
@@ -326,6 +400,7 @@ export function BookingModal({
           </DialogDescription>
         </DialogHeader>
 
+        {/* Step Pills */}
         <div className="mt-4 px-4">
           <div className="flex items-center gap-4">
             <StepPill
@@ -351,6 +426,18 @@ export function BookingModal({
               done={step > 3}
               icon={CheckCircle}
             />
+            {!isExistingUser && paymentData?.price !== "0.00" && (
+              <>
+                <div className="h-[2px] flex-1 bg-slate-200" />
+                <StepPill
+                  idx={4}
+                  title="Payment"
+                  active={step === 4}
+                  done={step > 4}
+                  icon={CreditCard}
+                />
+              </>
+            )}
           </div>
         </div>
 
@@ -366,6 +453,7 @@ export function BookingModal({
                 />
               </div>
             )}
+
             {step === 2 && (
               <TimeSlotSelector
                 selectedDate={selectedDate}
@@ -384,8 +472,21 @@ export function BookingModal({
                 tokensRequired={tokensRequired}
               />
             )}
+
             {step === 3 && (
               <BookingForm formData={formData} setFormData={setFormData} />
+            )}
+
+            {step === 4 && paymentData && !isExistingUser && (
+              <PaymentStep
+                booking={paymentData}
+                locationID={location}
+                onBack={() => setStep(3)}
+                onComplete={() => {
+                  onOpenChange(false);
+                  setStep(1);
+                }}
+              />
             )}
           </div>
 
@@ -408,25 +509,12 @@ export function BookingModal({
             pricingOptions={boardroom?.pricingOptions || []}
             onStepBack={() => setStep((prev) => Math.max(1, prev - 1))}
             onStepForward={() => {
-              // STEP 1 VALIDATION
-              if (step === 1) {
-                if (!selectedDate) {
-                  toast.error("Please select a date");
-                  return;
-                }
-                if (isExistingUser && !userId.trim()) {
-                  toast.error("Please enter User ID for existing user");
-                  return;
-                }
-              }
-
-              // STEP 2 VALIDATION
-              if (step === 2 && (!selectedStart || !selectedDuration)) {
-                toast.error("Please select a start time and duration");
+              if (!goToNextStep()) return;
+              if (step === 3) {
+                handleSubmit(new Event("submit") as any);
                 return;
               }
-
-              setStep((prev) => Math.min(3, prev + 1));
+              setStep((prev) => Math.min(isExistingUser ? 3 : 4, prev + 1));
             }}
             onSubmit={handleSubmit}
           />

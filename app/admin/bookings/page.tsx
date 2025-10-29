@@ -60,6 +60,7 @@ import { User } from "@prisma/client";
 
 // === 1. UPDATE: Add financeStatus to Booking ===
 interface Booking {
+  orderID: String;
   id: string;
   eventTitle: string;
   bookerName: string;
@@ -1158,6 +1159,12 @@ export default function BookingsPage() {
                             <Phone className="h-4 w-4 mr-2" />
                             {booking.phoneNumber}
                           </div>
+                          {!booking.isExsisting && (
+                            <div className="flex items-center text-sm text-slate-600">
+                              Order ID:
+                              {booking.orderID}
+                            </div>
+                          )}
                           <div className="text-sm text-slate-500">
                             {booking.isExsisting ? (
                               <>

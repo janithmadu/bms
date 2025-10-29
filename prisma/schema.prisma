@@ -156,6 +156,7 @@ model Booking {
   phoneNumber   String    @default("")
   price         String    @default("")
   useName       String    @default("") @db.VarChar(100)
+  orderID      String    @default("") @db.VarChar(100)
 
   @@index([boardroomId])
   @@index([date])

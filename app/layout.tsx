@@ -17,6 +17,9 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en">
+        <head>
+        <script src={process.env.NEXT_PUBLIC_PAYHERE_JS} async defer />
+      </head>
       <body className={inter.className}>
         <Providers>{children}</Providers>
       </body>

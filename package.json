@@ -49,6 +49,7 @@
     "class-variance-authority": "^0.7.0",
     "clsx": "^2.1.1",
     "cmdk": "^1.0.0",
+    "crypto-js": "^4.2.0",
     "date-fns": "^3.6.0",
     "embla-carousel-react": "^8.3.0",
     "eslint": "8.49.0",
@@ -83,6 +84,7 @@
     "zustand": "^5.0.8"
   },
   "devDependencies": {
+    "@types/crypto-js": "^4.2.2",
     "@types/nodemailer": "^7.0.3",
     "@types/shortid": "^2.2.0"
   }

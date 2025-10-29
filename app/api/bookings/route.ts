@@ -19,6 +19,7 @@ export async function POST(request: NextRequest) {
       bookerId,
       phoneNumber,
       Price,
+      orderID
     } = body;
 
     // Calculate duration in hours
@@ -60,6 +61,7 @@ export async function POST(request: NextRequest) {
             endTime: end,
             duration,
             tokensUsed,
+            orderID: orderID,
             UserID: UserID ?? "",
             isExsisting: isExistingUser ? true : false,
             price: Price ?? "0",
