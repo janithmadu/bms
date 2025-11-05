@@ -5,7 +5,7 @@ import Link from 'next/link'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { MapPin, DoorOpen, ArrowRight, Building2, Search, Star, Users, Calendar, Clock, CheckCircle, Sparkles } from 'lucide-react'
+import { MapPin, DoorOpen, ArrowRight, Building2, Search, Star, Users, Calendar, Clock, CircleCheck as CheckCircle, Sparkles } from 'lucide-react'
 
 interface Location {
   id: string

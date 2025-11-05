@@ -8,7 +8,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Input } from '@/components/ui/input'
-import { ArrowLeft, MapPin, Users, Maximize2, Calendar, Building2, Search, Star, Clock, Wifi, Coffee, Car, Shield, Sparkles, CheckCircle, Filter } from 'lucide-react'
+import { ArrowLeft, MapPin, Users, Maximize2, Calendar, Building2, Search, Star, Clock, Wifi, Coffee, Car, Shield, Sparkles, CircleCheck as CheckCircle, Filter } from 'lucide-react'
 import { BookingModal } from '@/components/booking/booking-modal'
 
 interface Boardroom {
