@@ -177,6 +177,24 @@ model Token {
   updatedAt           DateTime @updatedAt
 }
 
+model Branding {
+  id              String   @id @default("default")
+  logoUrl         String?  @db.Text
+  companyName     String   @default("BookingHub")
+  primaryColor    String   @default("#3b82f6")
+  secondaryColor  String   @default("#6366f1")
+  accentColor     String   @default("#8b5cf6")
+  backgroundColor String   @default("#ffffff")
+  textColor       String   @default("#1e293b")
+  cardColor       String   @default("#ffffff")
+  borderColor     String   @default("#e2e8f0")
+  successColor    String   @default("#10b981")
+  warningColor    String   @default("#f59e0b")
+  errorColor      String   @default("#ef4444")
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+}
+
 model Business {
   id          String @id @default(cuid())
   name        String

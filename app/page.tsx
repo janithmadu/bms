@@ -1,9 +1,12 @@
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { useBrandingStore } from "@/stores/useBrandingStore";
+import { useBrandingStore } from "@/stores/useBrandingStore";
 import { Building2, Calendar, Coins, Users, ArrowRight, MapPin, Star, CircleCheck as CheckCircle, Clock, Shield } from "lucide-react";
 
 export default function HomePage() {
+  const { branding } = useBrandingStore();
+
   const { branding } = useBrandingStore();
 
   return (
@@ -22,6 +25,14 @@ export default function HomePage() {
             {branding?.logoUrl ? (
               <img 
                 src={branding.logoUrl} 
+                alt={branding.companyName || 'Logo'} 
+                className="h-12 w-auto object-contain"
+              />
+            ) : (
+              <div className="h-12 w-12 rounded-2xl bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center shadow-lg">
+                <Building2 className="h-7 w-7 text-white" />
+              </div>
+            )}
                 alt={branding.companyName || 'Logo'} 
                 className="h-12 w-auto object-contain"
               />

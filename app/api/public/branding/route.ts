@@ -6,11 +6,11 @@ export const revalidate = 0
 
 export async function GET() {
   try {
-    const branding = await prisma.$queryRaw`
-      SELECT * FROM branding WHERE id = 'default' LIMIT 1
-    ` as any[]
+    const branding = await prisma.branding.findUnique({
+      where: { id: 'default' }
+    })
 
-    if (branding.length === 0) {
+    if (!branding) {
       // Return default branding if none exists
       return NextResponse.json({
         id: 'default',
@@ -29,7 +29,7 @@ export async function GET() {
       })
     }
 
-    return NextResponse.json(branding[0])
+    return NextResponse.json(branding)
   } catch (error) {
     console.error('Error fetching public branding:', error)
     return NextResponse.json(

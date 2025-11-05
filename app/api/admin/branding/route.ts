@@ -5,25 +5,22 @@ import { authOptions } from '@/lib/auth'
 
 export async function GET() {
   try {
-    const branding = await prisma.$queryRaw`
-      SELECT * FROM branding WHERE id = 'default' LIMIT 1
-    ` as any[]
+    const branding = await prisma.branding.findUnique({
+      where: { id: 'default' }
+    })
 
-    if (branding.length === 0) {
+    if (!branding) {
       // Create default branding if it doesn't exist
-      const defaultBranding = await prisma.$executeRaw`
-        INSERT INTO branding (id, companyName) VALUES ('default', 'BookingHub')
-        ON DUPLICATE KEY UPDATE companyName = companyName
-      `
-      
-      const newBranding = await prisma.$queryRaw`
-        SELECT * FROM branding WHERE id = 'default' LIMIT 1
-      ` as any[]
-      
-      return NextResponse.json(newBranding[0])
+      const defaultBranding = await prisma.branding.create({
+        data: {
+          id: 'default',
+          companyName: 'BookingHub'
+        }
+      })
+      return NextResponse.json(defaultBranding)
     }
 
-    return NextResponse.json(branding[0])
+    return NextResponse.json(branding)
   } catch (error) {
     console.error('Error fetching branding:', error)
     return NextResponse.json(
@@ -59,29 +56,41 @@ export async function PUT(request: NextRequest) {
       errorColor
     } = body
 
-    const updatedBranding = await prisma.$executeRaw`
-      UPDATE branding SET
-        logoUrl = ${logoUrl || null},
-        companyName = ${companyName},
-        primaryColor = ${primaryColor},
-        secondaryColor = ${secondaryColor},
-        accentColor = ${accentColor},
-        backgroundColor = ${backgroundColor},
-        textColor = ${textColor},
-        cardColor = ${cardColor},
-        borderColor = ${borderColor},
-        successColor = ${successColor},
-        warningColor = ${warningColor},
-        errorColor = ${errorColor},
-        updatedAt = CURRENT_TIMESTAMP
-      WHERE id = 'default'
-    `
+    const updatedBranding = await prisma.branding.upsert({
+      where: { id: 'default' },
+      update: {
+        logoUrl: logoUrl || null,
+        companyName,
+        primaryColor,
+        secondaryColor,
+        accentColor,
+        backgroundColor,
+        textColor,
+        cardColor,
+        borderColor,
+        successColor,
+        warningColor,
+        errorColor,
+        updatedAt: new Date()
+      },
+      create: {
+        id: 'default',
+        logoUrl: logoUrl || null,
+        companyName,
+        primaryColor,
+        secondaryColor,
+        accentColor,
+        backgroundColor,
+        textColor,
+        cardColor,
+        borderColor,
+        successColor,
+        warningColor,
+        errorColor
+      }
+    })
 
-    const branding = await prisma.$queryRaw`
-      SELECT * FROM branding WHERE id = 'default' LIMIT 1
-    ` as any[]
-
-    return NextResponse.json(branding[0])
+    return NextResponse.json(updatedBranding)
   } catch (error) {
     console.error('Error updating branding:', error)
     return NextResponse.json(

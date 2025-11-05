@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { useBrandingStore } from '@/stores/useBrandingStore'
+import { useBrandingStore } from '@/stores/useBrandingStore'
 import { Building2, Mail, Lock, Eye, EyeOff } from 'lucide-react'
 import { toast } from 'sonner'
 
@@ -18,6 +19,8 @@ export default function LoginPage() {
   const router = useRouter()
 
   const { data: session, status } = useSession();
+  const { branding } = useBrandingStore();
+
   const { branding } = useBrandingStore();
 
   if (session) {
@@ -66,6 +69,16 @@ export default function LoginPage() {
             {branding?.logoUrl ? (
               <div className="mx-auto mb-4">
                 <img 
+                  src={branding.logoUrl} 
+                  alt={branding.companyName || 'Logo'} 
+                  className="h-16 w-auto object-contain mx-auto"
+                />
+              </div>
+            ) : (
+              <div className="mx-auto h-16 w-16 rounded-2xl bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center mb-4 shadow-lg">
+                <Building2 className="h-8 w-8 text-white" />
+              </div>
+            )}
                   src={branding.logoUrl} 
                   alt={branding.companyName || 'Logo'} 
                   className="h-16 w-auto object-contain mx-auto"

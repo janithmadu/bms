@@ -133,3 +133,52 @@
     border-color: var(--accent) !important;
   }
 }
+
+/* Dynamic color classes */
+@layer utilities {
+  .bg-primary {
+    background-color: var(--primary) !important;
+  }
+  .bg-secondary {
+    background-color: var(--secondary) !important;
+  }
+  .bg-accent {
+    background-color: var(--accent) !important;
+  }
+  .bg-success {
+    background-color: var(--success) !important;
+  }
+  .bg-warning {
+    background-color: var(--warning) !important;
+  }
+  .bg-error {
+    background-color: var(--error) !important;
+  }
+  .text-primary {
+    color: var(--primary) !important;
+  }
+  .text-secondary {
+    color: var(--secondary) !important;
+  }
+  .text-accent {
+    color: var(--accent) !important;
+  }
+  .text-success {
+    color: var(--success) !important;
+  }
+  .text-warning {
+    color: var(--warning) !important;
+  }
+  .text-error {
+    color: var(--error) !important;
+  }
+  .border-primary {
+    border-color: var(--primary) !important;
+  }
+  .border-secondary {
+    border-color: var(--secondary) !important;
+  }
+  .border-accent {
+    border-color: var(--accent) !important;
+  }
+}
