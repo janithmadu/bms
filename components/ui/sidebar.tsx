@@ -3,20 +3,36 @@
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { cn } from '@/lib/utils'
-import { Building2, Calendar, Coins, LayoutDashboard, MapPin, LogOut, Users, User } from 'lucide-react'
+import { Button } from '@/components/ui/button'
+import { Badge } from '@/components/ui/badge'
+import { useBrandingStore } from '@/stores/useBrandingStore'
+import {
+  Building2,
+  Calendar,
+  Users,
+  MapPin,
+  Coins,
+  BarChart3,
+  Settings,
+  LogOut,
+  Home,
+  Palette,
+} from 'lucide-react'
 import { signOut, useSession } from 'next-auth/react'
-
-const navigation = [
-  { name: 'Dashboard', href: '/admin', icon: LayoutDashboard },
-  { name: 'Locations', href: '/admin/locations', icon: MapPin },
-  { name: 'Bookings', href: '/admin/bookings', icon: Calendar },
-  { name: 'Users', href: '/admin/users', icon: Users },
-  { name: 'Tokens', href: '/admin/tokens', icon: Coins },
-]
 
 export default function AdminSidebar() {
   const pathname = usePathname()
-  const { data: session } = useSession() // get current user
+  const { data: session } = useSession()
+  const { branding } = useBrandingStore()
+
+  const navigation = [
+    { name: 'Dashboard', href: '/admin', icon: Home },
+    { name: 'Locations', href: '/admin/locations', icon: MapPin },
+    { name: 'Bookings', href: '/admin/bookings', icon: Calendar },
+    { name: 'Users', href: '/admin/users', icon: Users },
+    { name: 'Tokens', href: '/admin/tokens', icon: Coins, adminOnly: true },
+    { name: 'Branding', href: '/admin/branding', icon: Palette, adminOnly: true },
+  ]
 
   const handleLogout = () => {
     signOut({
@@ -27,9 +43,26 @@ export default function AdminSidebar() {
   return (
     <div className="fixed top-0 left-0 h-screen w-64 flex flex-col bg-gray-900">
       {/* Logo */}
-      <div className="flex h-16 shrink-0 items-center px-4">
-        <Building2 className="h-8 w-8 text-white" />
-        <span className="ml-2 text-xl font-semibold text-white">Admin</span>
+      <div className="flex h-16 items-center px-6 border-b border-slate-200">
+        <div className="flex items-center space-x-3">
+          {branding?.logoUrl ? (
+            <img 
+              src={branding.logoUrl} 
+              alt={branding.companyName || 'Logo'} 
+              className="h-8 w-auto object-contain"
+            />
+          ) : (
+            <div className="h-8 w-8 rounded-lg bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center">
+              <Building2 className="h-5 w-5 text-white" />
+            </div>
+          )}
+          <div>
+            <span className="font-bold text-slate-900">
+              {branding?.companyName || 'BookingHub'}
+            </span>
+            <p className="text-xs text-slate-500">Admin Panel</p>
+          </div>
+        </div>
       </div>
 
       {/* Navigation */}

@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { useBrandingStore } from '@/stores/useBrandingStore'
 import { Building2, Mail, Lock, Eye, EyeOff } from 'lucide-react'
 import { toast } from 'sonner'
 
@@ -17,6 +18,7 @@ export default function LoginPage() {
   const router = useRouter()
 
   const { data: session, status } = useSession();
+  const { branding } = useBrandingStore();
 
   if (session) {
     window.location.href = process.env.NEXT_PUBLIC_MAIN_URL as string;
@@ -61,11 +63,23 @@ export default function LoginPage() {
         <div className="bg-white/80 backdrop-blur-xl rounded-2xl shadow-2xl border border-white/20 p-8">
           {/* Logo and Title */}
           <div className="text-center mb-8">
-            <div className="mx-auto h-16 w-16 rounded-2xl bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center mb-4 shadow-lg">
-              <Building2 className="h-8 w-8 text-white" />
-            </div>
+            {branding?.logoUrl ? (
+              <div className="mx-auto mb-4">
+                <img 
+                  src={branding.logoUrl} 
+                  alt={branding.companyName || 'Logo'} 
+                  className="h-16 w-auto object-contain mx-auto"
+                />
+              </div>
+            ) : (
+              <div className="mx-auto h-16 w-16 rounded-2xl bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center mb-4 shadow-lg">
+                <Building2 className="h-8 w-8 text-white" />
+              </div>
+            )}
             <h1 className="text-2xl font-bold text-slate-900 mb-2">Welcome Back</h1>
-            <p className="text-slate-600">Sign in to your admin dashboard</p>
+            <p className="text-slate-600">
+              Sign in to {branding?.companyName || 'BookingHub'} admin dashboard
+            </p>
           </div>
 
           {/* Login Form */}

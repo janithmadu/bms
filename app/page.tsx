@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
+import { useBrandingStore } from "@/stores/useBrandingStore";
 import {
   Building2,
   Calendar,
@@ -13,7 +14,9 @@ import {
   Shield,
 } from "lucide-react";
 
-export default async function HomePage() {
+export default function HomePage() {
+  const { branding } = useBrandingStore();
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50">
       {/* Background decoration */}
@@ -27,12 +30,20 @@ export default async function HomePage() {
       <nav className="relative z-10 container mx-auto px-4 py-6">
         <div className="flex items-center justify-between">
           <div className="flex items-center space-x-3">
-            <div className="h-12 w-12 rounded-2xl bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center shadow-lg">
-              <Building2 className="h-7 w-7 text-white" />
-            </div>
+            {branding?.logoUrl ? (
+              <img 
+                src={branding.logoUrl} 
+                alt={branding.companyName || 'Logo'} 
+                className="h-12 w-auto object-contain"
+              />
+            ) : (
+              <div className="h-12 w-12 rounded-2xl bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center shadow-lg">
+                <Building2 className="h-7 w-7 text-white" />
+              </div>
+            )}
             <div>
               <span className="font-bold text-2xl text-slate-900">
-                BookingHub
+                {branding?.companyName || 'BookingHub'}
               </span>
               <p className="text-sm text-slate-600">Premium Meeting Spaces</p>
             </div>
@@ -286,13 +297,13 @@ export default async function HomePage() {
             </div>
             <div>
               <span className="font-bold text-xl text-slate-900">
-                BookingHub
+                {branding?.companyName || 'BookingHub'}
               </span>
               <p className="text-sm text-slate-600">Premium Meeting Spaces</p>
             </div>
           </div>
           <p className="text-sm text-slate-500">
-            © {new Date().getFullYear()} BookingHub.Powered by{" "}
+            © {new Date().getFullYear()} {branding?.companyName || 'BookingHub'}.Powered by{" "}
             <span className="font-semibold">IWT</span>.
           </p>
         </div>
