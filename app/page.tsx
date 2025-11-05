@@ -1,18 +1,7 @@
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { useBrandingStore } from "@/stores/useBrandingStore";
-import {
-  Building2,
-  Calendar,
-  Coins,
-  Users,
-  ArrowRight,
-  MapPin,
-  Star,
-  CheckCircle,
-  Clock,
-  Shield,
-} from "lucide-react";
+import { Building2, Calendar, Coins, Users, ArrowRight, MapPin, Star, CircleCheck as CheckCircle, Clock, Shield } from "lucide-react";
 
 export default function HomePage() {
   const { branding } = useBrandingStore();
