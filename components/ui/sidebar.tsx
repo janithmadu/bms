@@ -1,126 +1,79 @@
-"use client"
-
-import Link from 'next/link'
-import { usePathname } from 'next/navigation'
-import { cn } from '@/lib/utils'
-import { Button } from '@/components/ui/button'
-import { ScrollArea } from '@/components/ui/scroll-area'
-import { Building2, Calendar, Users, MapPin, Settings, LogOut, BarChart3, Coins, Palette } from 'lucide-react'
-import { signOut, useSession } from 'next-auth/react'
-import { useBrandingStore } from '@/stores/useBrandingStore'
-
-const navigation = [
-  { name: 'Dashboard', href: '/admin', icon: BarChart3 },
-  { name: 'Venues', href: '/admin/venues', icon: MapPin },
+{"code":"rate-lding2, Cal\enaPcP's"n" h a,us"i"Y)ic4 " -0cp /  <r=-sles   .nPeex-ax {e-wd  0-wke -cpt-
+   g ","po/"r-grL m mH=  :to --,0e''/ ffeh-w5:0pteOut, ChartBar as BarChart3, Coins, Palette } from 'lucide-react' as BarChart3, Settings, LogOut, Chrome as Home, Palette } from 'lucide-react' icon: MapPin },
   { name: 'Bookings', href: '/admin/bookings', icon: Calendar },
   { name: 'Users', href: '/admin/users', icon: Users },
   { name: 'Tokens', href: '/admin/tokens', icon: Coins },
-  { name: 'Branding', href: '/admin/branding', icon: Palette },
 ]
 
 export default function AdminSidebar() {
   const pathname = usePathname()
-  const router = useRouter()
-  const { data: session } = useSession()
-  const { branding } = useBrandingStore()
+  const { data: session } = useSession() // get current user
 
-  const handleSignOut = async () => {
-    await signOut({ redirect: false })
-    router.push('/auth/login')
-  }
+  const handleLogout = () => {
+    signOut({
+      callbackUrl: "/auth/login",
+    });
+  };
 
   return (
-    <div className="flex h-screen w-64 flex-col bg-white border-r border-slate-200">
-      {/* Header */}
-      <div className="flex-shrink-0">
-        <div className="flex h-16 items-center px-6 border-b border-slate-200">
-          <Link href="/admin" className="flex items-center space-x-3">
-            {branding?.logoUrl ? (
-              <img 
-                src={branding.logoUrl} 
-                alt={branding.companyName || 'Logo'} 
-                className="h-8 w-auto object-contain"
-              />
-            ) : (
-              <div className="h-8 w-8 rounded-lg bg-blue-600 flex items-center justify-center">
-                <Building2 className="h-5 w-5 text-white" />
-              </div>
-            )}
-            <div>
-              <span className="font-semibold text-slate-900">{branding?.companyName || 'BookingHub'}</span>
-              <p className="text-xs text-slate-500">Admin Panel</p>
-            </div>
-          </Link>
-        </div>
+    <div className="fixed top-0 left-0 h-screen w-64 flex flex-col bg-gray-900">
+      {/* Logo */}
+      <div className="flex h-16 shrink-0 items-center px-4">
+        <Building2 className="h-8 w-8 text-white" />
+        <span className="ml-2 text-xl font-semibold text-white">Admin</span>
       </div>
 
       {/* Navigation */}
-      <div className="flex-1 overflow-hidden">
-        <ScrollArea className="h-full px-3 py-4">
-          <div className="space-y-1">
-            <nav className="space-y-1">
-              {navigation.map((item) => {
-                const isActive = pathname === item.href
-                // Hide branding for non-admin users
-                if (item.name === 'Branding' && session?.user.role !== 'admin') {
-                  return null
-                }
-                return (
-                  <Link
-                    key={item.name}
-                    href={item.href}
-                    className={cn(
-                      'group flex items-center rounded-lg px-3 py-2 text-sm font-medium transition-colors',
-                      isActive
-                        ? 'bg-blue-50 text-blue-700'
-                        : 'text-slate-700 hover:bg-slate-50 hover:text-slate-900'
-                    )}
-                  >
-                    <item.icon
-                      className={cn(
-                        'mr-3 h-5 w-5 flex-shrink-0',
-                        isActive
-                          ? 'text-blue-700'
-                          : 'text-slate-400 group-hover:text-slate-500'
-                      )}
-                    />
-                    {item.name}
-                  </Link>
-                )
-              })}
-            </nav>
-          </div>
-        </ScrollArea>
-      </div>
+      <nav className="flex-1 space-y-1 px-2 py-4 overflow-y-auto">
+        {navigation.map((item) => {
+          const isActive = pathname === item.href
+          return (
+            <Link
+              key={item.name}
+              href={item.href}
+              className={cn(
+                isActive
+                  ? 'bg-gray-800 text-white'
+                  : 'text-gray-300 hover:bg-gray-700 hover:text-white',
+                'group flex items-center px-2 py-2 text-sm font-medium rounded-md'
+              )}
+            >
+              <item.icon
+                className={cn(
+                  isActive ? 'text-white' : 'text-gray-400 group-hover:text-white',
+                  'mr-3 h-5 w-5 flex-shrink-0'
+                )}
+              />
+              {item.name}
+            </Link>
+          )
+        })}
+      </nav>
 
-      {/* Footer */}
-      <div className="flex-shrink-0 border-t border-slate-200 p-4">
+      {/* Bottom section: user info + logout */}
+      <div className="flex-shrink-0 p-4 border-t border-gray-700">
         {session?.user && (
-          <div className="mb-4">
-            <div className="flex items-center">
-              <div className="h-8 w-8 rounded-full bg-slate-200 flex items-center justify-center">
-                <span className="text-sm font-medium text-slate-600">
-                  {session.user.name?.charAt(0) || session.user.email?.charAt(0)}
-                </span>
-              </div>
-              <div className="ml-3">
-                <p className="text-sm font-medium text-slate-900">
-                  {session.user.name || session.user.email}
-                </p>
-                <p className="text-xs text-slate-500">{session.user.role || 'User'}</p>
-              </div>
+          <div className="flex items-center mb-3">
+            {/* Avatar/Icon */}
+
+              <User className="h-10 w-10 text-gray-400" />
+
+            {/* Name & Role */}
+            <div className="ml-3 text-sm">
+              <p className="font-medium text-white">{session.user.name || session.user.email}</p>
+              <p className="text-gray-400">{session.user.role || 'Role not set'}</p>
             </div>
           </div>
         )}
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={handleSignOut}
-          className="w-full justify-start text-slate-700 hover:text-slate-900"
+
+        {/* Logout button */}
+        <button
+          onClick={handleLogout}
+          className="group flex w-full items-center px-2 py-2 text-sm font-medium text-gray-300 rounded-md hover:bg-gray-700 hover:text-white"
         >
-          <LogOut className="mr-2 h-4 w-4" />
+          <LogOut className="mr-3 h-5 w-5 flex-shrink-0 text-gray-400 group-hover:text-white" />
           Sign out
-        </Button>
+        </button>
       </div>
     </div>
   )
